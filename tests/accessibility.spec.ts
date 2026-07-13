@@ -1,18 +1,32 @@
 import { test, expect } from "@playwright/test";
 
 import { Playwright } from "@siteimprove/alfa-playwright";
-import { Audit, Logging, SIP } from "@siteimprove/alfa-test-utils";
+import { Audit, Logging, Rules, SIP } from "@siteimprove/alfa-test-utils";
 import { getCommitInformation } from "@siteimprove/alfa-test-utils/git";
 
 /**
  * Accessibility gate powered by Siteimprove Alfa (https://github.com/siteimprove/alfa).
  *
  * Playwright renders the page in a real browser, Alfa scrapes the resulting DOM
- * and audits it against the WCAG-based ACT rules, and the test fails the CI job
- * if any rule reports a failure.
+ * and audits it against the ACT rules, and the test fails the CI job if any rule
+ * reports a failure.
  *
  * Add one test per page/route you want to guard.
  */
+
+/**
+ * The conformance target for this project.
+ *
+ * We include a rule if it maps to a WCAG 2.1 level A/AA success criterion, OR is
+ * one of Alfa's Best Practice rules, OR is an ARIA conformance rule (correct
+ * roles, states, and accessible names such as `aria-label`/`aria-labelledby`).
+ * AAA-only rules (e.g. enhanced contrast, 44px target size) are excluded.
+ */
+const conformanceTarget: typeof Rules.wcag21aaFilter = (rule) =>
+  Rules.wcag21aaFilter(rule) ||
+  Rules.bestPracticesFilter(rule) ||
+  Rules.ARIAFilter(rule);
+
 test("home page has no accessibility violations", async ({ page }) => {
   // 1. Render the page exactly as a user would receive it.
   await page.goto("/");
@@ -21,8 +35,10 @@ test("home page has no accessibility violations", async ({ page }) => {
   const documentHandle = await page.evaluateHandle("document");
   const alfaPage = await Playwright.toPage(documentHandle);
 
-  // 3. Run the audit (all default WCAG rules).
-  const alfaResult = await Audit.run(alfaPage);
+  // 3. Run the audit against WCAG 2.1 AA + Best Practices + ARIA.
+  const alfaResult = await Audit.run(alfaPage, {
+    rules: { include: conformanceTarget },
+  });
 
   // 4. Optionally publish results to the Siteimprove Intelligence Platform.
   //    Only runs when credentials are provided (e.g. via GitHub Actions secrets),

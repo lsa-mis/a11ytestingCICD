@@ -67,20 +67,26 @@ required in your branch protection rules.
 
 ## How the gate works (in code)
 
-`tests/accessibility.spec.ts`:
+The audit is scoped to **WCAG 2.1 level AA + Alfa Best Practices + ARIA**
+(67 rules). See [`tests/accessibility.spec.ts`](tests/accessibility.spec.ts):
 
 ```ts
+// A rule is included if it is WCAG 2.1 A/AA, a Best Practice, or an ARIA rule.
+const conformanceTarget: typeof Rules.wcag21aaFilter = (rule) =>
+  Rules.wcag21aaFilter(rule) || Rules.bestPracticesFilter(rule) || Rules.ARIAFilter(rule);
+
 await page.goto("/");
-const documentHandle = await page.evaluateHandle("document");
-const alfaPage = await Playwright.toPage(documentHandle);   // scrape the DOM
-const alfaResult = await Audit.run(alfaPage);               // run WCAG rules
+const alfaPage = await Playwright.toPage(await page.evaluateHandle("document"));
+const alfaResult = await Audit.run(alfaPage, { rules: { include: conformanceTarget } });
 
 const failingRules = alfaResult.resultAggregates.filter((a) => a.failed > 0);
 expect(failingRules.size).toBe(0);                          // fail on violations
 ```
 
-To guard more pages, add another `test(...)` block that navigates to the route
-and repeats the audit.
+See **[docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)** for the full setup: the
+conformance target, ARIA-label guidance, pass/fail semantics, and how to change
+the target. To guard more pages, add another `test(...)` block that navigates to
+the route and reuses `conformanceTarget`.
 
 ## Optional: publish results to Siteimprove
 
