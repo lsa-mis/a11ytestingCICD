@@ -1,0 +1,23 @@
+{
+  "name": "alfa-a11y-cicd",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Front-end project with Siteimprove Alfa accessibility testing wired into a GitHub Actions CI/CD pipeline.",
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "test:a11y": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@siteimprove/alfa-playwright": "^0.84.1",
+    "@siteimprove/alfa-test-utils": "^0.84.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  }
+}

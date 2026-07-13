@@ -1,0 +1,83 @@
+name: CI
+
+# Runs on every push and pull request to main, plus on-demand.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Stage 1 — type-check and build the front-end.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Type-check & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Stage 2 — accessibility gate powered by Siteimprove Alfa.
+  #           Fails the pipeline if the rendered page has WCAG violations.
+  # ---------------------------------------------------------------------------
+  accessibility:
+    name: Accessibility audit (Alfa)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Full history lets Alfa attach commit metadata when uploading to SIP.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Alfa accessibility audit
+        run: npm run test:a11y
+        env:
+          # Optional: set these as repository secrets to publish results to the
+          # Siteimprove Intelligence Platform. The audit gate works without them.
+          SI_USER_EMAIL: ${{ secrets.SI_USER_EMAIL }}
+          SI_API_KEY: ${{ secrets.SI_API_KEY }}
+          SI_SITE_ID: ${{ secrets.SI_SITE_ID }}
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30

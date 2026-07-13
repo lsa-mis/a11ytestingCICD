@@ -1,0 +1,341 @@
+:root {
+  --ink: #16181d;
+  --muted: #4b5563;
+  --brand: #0a4c8f;
+  --brand-dark: #083c72;
+  --navy: #0b1f33;
+  --nav-link: #cfe0f2;
+  --surface: #ffffff;
+  --surface-alt: #eef4fb;
+  --border: #d4dae2;
+  --error: #b00020;
+  --success: #0a6b2f;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  color: var(--ink);
+  background: var(--surface);
+  line-height: 1.6;
+}
+
+.container {
+  width: min(1080px, 100% - 2.5rem);
+  margin-inline: auto;
+}
+
+.container.narrow {
+  width: min(680px, 100% - 2.5rem);
+}
+
+/* Visible focus indicator for every interactive element (WCAG 2.4.7). */
+:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip link — hidden until focused. */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: var(--navy);
+  color: #ffffff;
+  border-radius: var(--radius);
+  transition: top 0.15s ease-in-out;
+}
+
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+/* Header */
+.site-header {
+  background: var(--navy);
+  color: #ffffff;
+}
+
+.header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 0.9rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.4rem 0.25rem;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.brand-mark {
+  color: var(--nav-link);
+}
+
+.nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-list a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  color: var(--nav-link);
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: var(--radius);
+}
+
+.nav-list a:hover,
+.nav-list a:focus-visible {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* Hero */
+.hero {
+  background: var(--surface-alt);
+  padding-block: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.hero-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hero-copy {
+  flex: 1 1 22rem;
+}
+
+.hero-art {
+  flex: 0 0 auto;
+  width: clamp(120px, 28vw, 200px);
+  height: auto;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  margin: 0 0 1rem;
+}
+
+.lead {
+  font-size: 1.15rem;
+  max-width: 40ch;
+  margin: 0 0 1.75rem;
+}
+
+/* Sections */
+.section {
+  padding-block: clamp(2.5rem, 5vw, 4rem);
+}
+
+.section-alt {
+  background: var(--surface-alt);
+}
+
+h2 {
+  font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+  margin: 0 0 1.5rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem;
+}
+
+/* Cards */
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.card p:last-child {
+  margin-bottom: 0;
+}
+
+.price {
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.price-term {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Buttons */
+.button {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid transparent;
+  font-size: 1rem;
+}
+
+.button-primary {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.button-primary:hover,
+.button-primary:focus-visible {
+  background: var(--brand-dark);
+}
+
+.button-secondary {
+  background: var(--surface);
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.button-secondary:hover,
+.button-secondary:focus-visible {
+  background: var(--surface-alt);
+}
+
+.card .button {
+  margin-top: 1rem;
+}
+
+/* Form */
+.signup-form {
+  margin-top: 1.5rem;
+}
+
+.field {
+  margin-bottom: 1.25rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+input[type="email"] {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  font-size: 1rem;
+  border: 2px solid var(--muted);
+  border-radius: var(--radius);
+  background: #ffffff;
+  color: var(--ink);
+}
+
+input[type="email"]:focus-visible {
+  border-color: var(--brand);
+  outline-offset: 1px;
+}
+
+.hint {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.form-status {
+  margin-top: 1rem;
+  font-weight: 600;
+  min-height: 1.5rem;
+}
+
+.form-status[data-state="error"] {
+  color: var(--error);
+}
+
+.form-status[data-state="success"] {
+  color: var(--success);
+}
+
+/* FAQ */
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.5rem 1.1rem;
+  margin-bottom: 0.85rem;
+}
+
+.faq-item summary {
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.55rem 0;
+}
+
+.faq-item p {
+  margin: 0 0 0.75rem;
+}
+
+/* Footer */
+.site-footer {
+  background: var(--navy);
+  color: #ffffff;
+  padding-block: 2rem;
+  margin-top: 1rem;
+}
+
+.footer-inner p {
+  margin: 0.25rem 0;
+}
+
+.site-footer a {
+  color: var(--nav-link);
+}
+
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  color: #ffffff;
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

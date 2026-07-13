@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Alfa Roasters — accessibility-first coffee, tested in CI with the Siteimprove Alfa engine."
+    />
+    <title>Alfa Roasters — Accessibility-first coffee</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">◐</span> Alfa Roasters
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav-list">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <h1 id="hero-heading">Coffee everyone can enjoy</h1>
+            <p class="lead">
+              Ethically sourced beans, delivered fresh. Our whole site is audited
+              for accessibility on every commit, because good products should work
+              for everyone.
+            </p>
+            <a class="button button-primary" href="#pricing">See our plans</a>
+          </div>
+          <svg
+            class="hero-art"
+            viewBox="0 0 120 120"
+            role="presentation"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <circle cx="60" cy="60" r="56" fill="#0a4c8f" />
+            <path
+              d="M40 46h34a10 10 0 0 1 0 20h-4v4a12 12 0 0 1-12 12H52a12 12 0 0 1-12-12V46z"
+              fill="#ffffff"
+            />
+            <path d="M70 50h4a6 6 0 0 1 0 12h-4z" fill="#0a4c8f" />
+            <path
+              d="M46 30c0 4-4 6-4 10M56 30c0 4-4 6-4 10M66 30c0 4-4 6-4 10"
+              stroke="#ffffff"
+              stroke-width="3"
+              stroke-linecap="round"
+              fill="none"
+            />
+          </svg>
+        </div>
+      </section>
+
+      <section id="features" class="section" aria-labelledby="features-heading">
+        <div class="container">
+          <h2 id="features-heading">Why Alfa Roasters</h2>
+          <ul class="cards">
+            <li class="card">
+              <h3>Freshly roasted</h3>
+              <p>Roasted to order and shipped within 24 hours so every cup tastes its best.</p>
+            </li>
+            <li class="card">
+              <h3>Fairly sourced</h3>
+              <p>Direct-trade partnerships mean farmers earn more for the beans they grow.</p>
+            </li>
+            <li class="card">
+              <h3>Accessible by design</h3>
+              <p>High-contrast, keyboard-friendly, and screen-reader tested — verified in CI.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="pricing" class="section section-alt" aria-labelledby="pricing-heading">
+        <div class="container">
+          <h2 id="pricing-heading">Simple pricing</h2>
+          <ul class="cards">
+            <li class="card">
+              <h3>Taster</h3>
+              <p class="price">$12<span class="price-term"> / month</span></p>
+              <p>One 250g bag every month. Cancel anytime.</p>
+              <a class="button button-secondary" href="#signup">Choose Taster</a>
+            </li>
+            <li class="card">
+              <h3>Enthusiast</h3>
+              <p class="price">$22<span class="price-term"> / month</span></p>
+              <p>Two 250g bags every month, plus early access to new roasts.</p>
+              <a class="button button-primary" href="#signup">Choose Enthusiast</a>
+            </li>
+            <li class="card">
+              <h3>Office</h3>
+              <p class="price">$60<span class="price-term"> / month</span></p>
+              <p>Five 500g bags every month for the whole team.</p>
+              <a class="button button-secondary" href="#signup">Choose Office</a>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="signup" class="section" aria-labelledby="signup-heading">
+        <div class="container narrow">
+          <h2 id="signup-heading">Get 10% off your first bag</h2>
+          <p>Join the newsletter and we'll send a discount code to your inbox.</p>
+          <form id="newsletter" class="signup-form" novalidate>
+            <div class="field">
+              <label for="email">Email address</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+                aria-describedby="email-hint"
+              />
+              <p id="email-hint" class="hint">
+                We'll only email you about your discount. No spam.
+              </p>
+            </div>
+            <button type="submit" class="button button-primary">Sign up</button>
+            <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="faq" class="section section-alt" aria-labelledby="faq-heading">
+        <div class="container narrow">
+          <h2 id="faq-heading">Frequently asked questions</h2>
+          <details class="faq-item">
+            <summary>When will my coffee arrive?</summary>
+            <p>Orders ship within 24 hours and typically arrive in 2–4 business days.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Can I pause or cancel my subscription?</summary>
+            <p>Yes. You can pause, skip, or cancel any time from your account — no fees.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Do you offer decaf?</summary>
+            <p>Every roast is available as a Swiss Water Process decaf at no extra cost.</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>&copy; <span id="year">2026</span> Alfa Roasters. Built accessibly.</p>
+        <p>
+          Accessibility tested with
+          <a href="https://github.com/siteimprove/alfa">Siteimprove Alfa</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
