@@ -333,6 +333,21 @@ input[type="email"]:focus-visible {
   color: #ffffff;
 }
 
+/* ⚠️ Test-only styles supporting the intentional violations in index.html.
+   Remove these together with that <section> to restore a passing page. */
+.low-contrast {
+  color: #b9b9b9; /* ~1.9:1 on white — fails WCAG 1.4.3 */
+}
+
+.icon-button {
+  font-size: 1.25rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
 /* Respect users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   * {
