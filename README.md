@@ -4,6 +4,8 @@ A small front-end project that demonstrates how to wire **[Siteimprove Alfa](htt
 
 Every push and pull request renders the site in a real browser, audits the DOM against WCAG (via Alfa's ACT rules), and **fails the build if there are accessibility violations**.
 
+> **Want to do this in your own project?** Follow the **[CI Accessibility Guide](docs/CI-ACCESSIBILITY-GUIDE.md)** — a step-by-step, framework-agnostic walkthrough covering React, Next.js, Vue, Angular, Svelte, Astro, plain static sites, and auditing a deployed preview URL.
+
 ## Stack
 
 | Concern            | Tool                                                        |
@@ -105,6 +107,8 @@ online report. When they're absent, the local pass/fail gate still runs.
 
 ## Learn more
 
+- **[Add this to your own project](docs/CI-ACCESSIBILITY-GUIDE.md)** — the framework-agnostic setup guide
+- **[docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)** — how the gate works in this repo
 - Alfa engine — https://github.com/siteimprove/alfa
 - Accessibility Code Checker docs — https://alfa.siteimprove.com/code-checker
 - Worked examples — https://github.com/Siteimprove/alfa-examples
