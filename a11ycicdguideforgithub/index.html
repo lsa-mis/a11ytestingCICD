@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add an Accessibility Gate to Your CI — Step-by-Step</title>
+  <meta name="description" content="A ~15-minute, copy-paste walkthrough to add a Siteimprove Alfa + Playwright accessibility gate to any project's GitHub Actions pipeline — fail the build on WCAG violations." />
+  <script>
+    // Set theme before paint to avoid a flash.
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (t !== "light" && t !== "dark") {
+          t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --bg: #f4f6fa; --surface: #ffffff; --inset: #f0f3f8;
+      --ink: #0f1826; --ink-soft: #33414f; --muted: #5b6a7c;
+      --border: #dce2ec; --border-strong: #c4cdda;
+      --accent: #1358e0; --accent-ink: #0f4cc4; --accent-soft: rgba(19,88,224,0.08); --accent-line: rgba(19,88,224,0.22);
+      --pass: #0a7d43; --pass-soft: rgba(10,125,67,0.12);
+      --fail: #c62a24; --fail-soft: rgba(198,42,36,0.1);
+      --warn: #8a5d00; --warn-soft: rgba(179,122,0,0.14);
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+      --radius: 12px; --radius-sm: 8px;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0f16; --surface: #121a25; --inset: #0d151f;
+        --ink: #e9eef5; --ink-soft: #c3cdda; --muted: #8d9bad;
+        --border: #212c3a; --border-strong: #303d4f;
+        --accent: #5b9dff; --accent-ink: #82b4ff; --accent-soft: rgba(91,157,255,0.12); --accent-line: rgba(91,157,255,0.28);
+        --pass: #37c07c; --pass-soft: rgba(55,192,124,0.14);
+        --fail: #ff6f64; --fail-soft: rgba(255,111,100,0.14);
+        --warn: #e2a83f; --warn-soft: rgba(226,168,63,0.16);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="light"] {
+      --bg: #f4f6fa; --surface: #ffffff; --inset: #f0f3f8;
+      --ink: #0f1826; --ink-soft: #33414f; --muted: #5b6a7c;
+      --border: #dce2ec; --border-strong: #c4cdda;
+      --accent: #1358e0; --accent-ink: #0f4cc4; --accent-soft: rgba(19,88,224,0.08); --accent-line: rgba(19,88,224,0.22);
+      --pass: #0a7d43; --pass-soft: rgba(10,125,67,0.12);
+      --fail: #c62a24; --fail-soft: rgba(198,42,36,0.1);
+      --warn: #8a5d00; --warn-soft: rgba(179,122,0,0.14);
+      color-scheme: light;
+    }
+    :root[data-theme="dark"] {
+      --bg: #0a0f16; --surface: #121a25; --inset: #0d151f;
+      --ink: #e9eef5; --ink-soft: #c3cdda; --muted: #8d9bad;
+      --border: #212c3a; --border-strong: #303d4f;
+      --accent: #5b9dff; --accent-ink: #82b4ff; --accent-soft: rgba(91,157,255,0.12); --accent-line: rgba(91,157,255,0.28);
+      --pass: #37c07c; --pass-soft: rgba(55,192,124,0.14);
+      --fail: #ff6f64; --fail-soft: rgba(255,111,100,0.14);
+      --warn: #e2a83f; --warn-soft: rgba(226,168,63,0.16);
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        radial-gradient(120% 80% at 90% -5%, var(--accent-soft), transparent 55%),
+        var(--bg);
+      line-height: 1.62;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: var(--accent-ink); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+    .skip {
+      position: absolute; left: 1rem; top: -3.5rem; z-index: 50;
+      background: var(--accent); color: #fff; padding: 0.55rem 0.95rem;
+      border-radius: var(--radius-sm); font: 600 0.85rem/1 var(--sans); text-decoration: none;
+      transition: top 0.15s ease;
+    }
+    .skip:focus { top: 1rem; }
+
+    .wrap { width: min(1180px, 100% - 3rem); margin-inline: auto; }
+
+    /* ---- top bar ---- */
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 0; }
+    .brand {
+      display: inline-flex; align-items: center; gap: 0.55rem;
+      font: 700 0.98rem/1 var(--sans); letter-spacing: -0.01em; color: var(--ink); text-decoration: none;
+    }
+    .brand .mark { color: var(--accent-ink); font-size: 1.15rem; }
+    .theme-toggle {
+      display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--ink-soft); cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .theme-toggle:hover { border-color: var(--border-strong); color: var(--ink); }
+    .theme-toggle svg { width: 18px; height: 18px; display: none; }
+    :root[data-theme="light"] .theme-toggle .i-moon { display: block; }
+    :root[data-theme="dark"] .theme-toggle .i-sun { display: block; }
+
+    /* ---- masthead ---- */
+    .masthead { padding: clamp(2rem, 5vw, 3.4rem) 0 clamp(2.2rem, 5vw, 3.2rem); border-bottom: 1px solid var(--border); }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 0.6rem; margin: 0 0 1.1rem;
+      font: 600 0.72rem/1 var(--mono); letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent-ink);
+    }
+    .eyebrow::before { content: ""; width: 1.6rem; height: 2px; background: var(--accent); border-radius: 2px; }
+    h1 {
+      margin: 0 0 1rem; font-size: clamp(2.1rem, 5vw, 3.3rem); line-height: 1.05;
+      letter-spacing: -0.022em; font-weight: 800; text-wrap: balance; max-width: 18ch;
+    }
+    h1 .accent { color: var(--accent-ink); }
+    .lede { margin: 0 0 1.6rem; font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--ink-soft); max-width: 62ch; text-wrap: pretty; }
+    .meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+    .meta li {
+      font: 600 0.76rem/1 var(--mono); color: var(--ink-soft);
+      background: var(--surface); border: 1px solid var(--border); padding: 0.5rem 0.7rem; border-radius: 99px;
+    }
+    .meta li b { color: var(--accent-ink); }
+
+    /* ---- layout ---- */
+    .layout { display: grid; grid-template-columns: 232px 1fr; gap: clamp(2rem, 4vw, 3.5rem); padding: 2.5rem 0 1rem; }
+
+    /* ---- table of contents ---- */
+    .toc { position: sticky; top: 1.5rem; align-self: start; }
+    .toc .toc-label { font: 700 0.68rem/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.85rem 0.2rem; }
+    .toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+    .toc a {
+      display: flex; align-items: center; gap: 0.65rem; padding: 0.5rem 0.6rem; border-radius: var(--radius-sm);
+      text-decoration: none; color: var(--muted); font-size: 0.9rem; font-weight: 500; line-height: 1.25;
+      border-left: 2px solid transparent; transition: background 0.14s ease, color 0.14s ease;
+    }
+    .toc a .n {
+      flex: none; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 6px;
+      font: 700 0.74rem/1 var(--mono); color: var(--muted); background: var(--inset); border: 1px solid var(--border);
+    }
+    .toc a:hover { background: var(--inset); color: var(--ink); }
+    .toc a[aria-current="true"] { color: var(--accent-ink); background: var(--accent-soft); font-weight: 650; }
+    .toc a[aria-current="true"] .n { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+    /* ---- content ---- */
+    .content { min-width: 0; max-width: 760px; }
+    .step { padding: 0 0 clamp(2.2rem, 4vw, 3rem); scroll-margin-top: 1.5rem; }
+    .step + .step { padding-top: clamp(2.2rem, 4vw, 3rem); border-top: 1px solid var(--border); }
+    .step-head { display: flex; align-items: center; gap: 0.9rem; margin: 0 0 0.85rem; }
+    .step-num {
+      flex: none; display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: 9px;
+      font: 800 0.95rem/1 var(--mono); color: #fff; background: var(--accent);
+    }
+    .step.prep .step-num { color: var(--accent-ink); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+    h2 { margin: 0; font-size: clamp(1.35rem, 2.6vw, 1.72rem); line-height: 1.15; letter-spacing: -0.015em; font-weight: 750; text-wrap: balance; }
+    .step p { color: var(--ink-soft); margin: 0.4rem 0 1rem; }
+    .step p.tip { color: var(--muted); font-size: 0.92rem; }
+    .step strong { color: var(--ink); font-weight: 700; }
+
+    code.inline {
+      font: 600 0.86em/1.4 var(--mono); background: var(--inset); border: 1px solid var(--border);
+      color: var(--ink-soft); padding: 0.1em 0.38em; border-radius: 5px;
+    }
+
+    /* ---- checklist ---- */
+    ul.check { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+    ul.check li { position: relative; padding-left: 1.9rem; color: var(--ink-soft); font-size: 0.94rem; }
+    ul.check li::before {
+      content: ""; position: absolute; left: 0; top: 0.15em; width: 1.15rem; height: 1.15rem;
+      border: 1.5px solid var(--border-strong); border-radius: 5px; background: var(--surface);
+    }
+    ul.check li::after {
+      content: ""; position: absolute; left: 0.42rem; top: 0.28em; width: 0.32rem; height: 0.6rem;
+      border: solid var(--pass); border-width: 0 2px 2px 0; transform: rotate(45deg); opacity: 0.55;
+    }
+
+    /* ---- code blocks ---- */
+    .code { background: var(--inset); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 0 0 1rem; }
+    .code-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      padding: 0.55rem 0.7rem 0.55rem 0.95rem; border-bottom: 1px solid var(--border);
+    }
+    .code-top .fname { font: 600 0.76rem/1 var(--mono); color: var(--muted); display: inline-flex; align-items: center; gap: 0.5rem; }
+    .code-top .fname .dot { width: 0.5rem; height: 0.5rem; border-radius: 99px; background: var(--accent); opacity: 0.7; }
+    .copy {
+      display: inline-flex; align-items: center; gap: 0.4rem; flex: none;
+      font: 600 0.74rem/1 var(--mono); color: var(--ink-soft); background: var(--surface);
+      border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem; cursor: pointer;
+      transition: border-color 0.14s ease, color 0.14s ease;
+    }
+    .copy:hover { border-color: var(--border-strong); color: var(--ink); }
+    .copy svg { width: 13px; height: 13px; }
+    .copy .lbl-ok { display: none; color: var(--pass); }
+    .copy[data-state="ok"] .lbl-copy, .copy[data-state="ok"] .i-copy { display: none; }
+    .copy[data-state="ok"] .lbl-ok { display: inline; }
+    .copy[data-state="ok"] { border-color: var(--pass); }
+    pre { margin: 0; padding: 1rem 1.1rem; overflow-x: auto; font: 500 0.83rem/1.7 var(--mono); color: var(--ink-soft); tab-size: 2; }
+    pre .cmt { color: var(--muted); font-style: italic; }
+
+    /* ---- tables ---- */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); margin: 0 0 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.6rem 0.9rem; border-top: 1px solid var(--border); vertical-align: top; }
+    thead th { border-top: none; background: var(--inset); font: 600 0.68rem/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    tbody th { font-weight: 700; color: var(--ink); white-space: nowrap; }
+    td code, th code { font: 600 0.82rem/1.4 var(--mono); color: var(--accent-ink); }
+    td .port { font: 600 0.82rem/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* ---- callout ---- */
+    .note {
+      border: 1px solid var(--border); border-left: 3px solid var(--accent); background: var(--surface);
+      border-radius: var(--radius-sm); padding: 0.9rem 1.05rem; margin: 0 0 1rem; font-size: 0.9rem; color: var(--ink-soft);
+    }
+    .note.warn { border-left-color: var(--warn); }
+    .note strong { color: var(--ink); }
+
+    /* ---- ui steps (numbered clicks) ---- */
+    ol.clicks { margin: 0 0 1rem; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    ol.clicks li { color: var(--ink-soft); font-size: 0.94rem; padding-left: 0.2rem; }
+    ol.clicks li::marker { color: var(--accent-ink); font-family: var(--mono); font-weight: 700; }
+
+    /* ---- footer ---- */
+    footer { border-top: 1px solid var(--border); padding: 2.4rem 0 3rem; margin-top: 1rem; }
+    .foot-links { display: flex; flex-wrap: wrap; gap: 0.6rem 1.4rem; margin: 0 0 1.3rem; padding: 0; list-style: none; }
+    .foot-links a { font: 600 0.88rem/1 var(--sans); text-decoration: none; }
+    .foot-links a:hover { text-decoration: underline; }
+    .foot-note { font-size: 0.82rem; color: var(--muted); max-width: 70ch; margin: 0; padding-top: 1.1rem; border-top: 1px dashed var(--border-strong); }
+    .foot-note b { color: var(--ink-soft); }
+
+    /* ---- responsive ---- */
+    @media (max-width: 880px) {
+      .layout { grid-template-columns: 1fr; gap: 1.2rem; padding-top: 1.2rem; }
+      .toc {
+        position: sticky; top: 0; z-index: 20; align-self: stretch;
+        background: var(--bg); margin: 0 calc(-1 * (50vw - 50%)); padding: 0.6rem calc(50vw - 50%);
+        border-bottom: 1px solid var(--border);
+      }
+      .toc .toc-label { display: none; }
+      .toc ol { flex-direction: row; overflow-x: auto; gap: 0.4rem; padding-bottom: 0.2rem; scrollbar-width: thin; }
+      .toc a { border-left: none; white-space: nowrap; padding: 0.4rem 0.5rem; }
+      .toc a .lbl { display: none; }
+      .toc a .n { width: 1.75rem; height: 1.75rem; }
+      .toc a[aria-current="true"] { background: var(--accent-soft); }
+      .content { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#guide">Skip to the guide</a>
+
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="https://github.com/lsa-mis/a11ytestingCICD">
+        <span class="mark" aria-hidden="true">◐</span> Alfa A11y CI/CD
+      </a>
+      <button class="theme-toggle" type="button" aria-label="Switch color theme">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+
+    <header class="masthead">
+      <p class="eyebrow">GitHub Actions · Accessibility CI</p>
+      <h1>Add an <span class="accent">accessibility gate</span> to your CI</h1>
+      <p class="lede">
+        Render every page in a real browser, audit the DOM against WCAG with the
+        open-source Siteimprove Alfa engine, and fail the build on violations —
+        so accessibility regressions never reach your main branch.
+      </p>
+      <ul class="meta">
+        <li>⏱ <b>~15 min</b></li>
+        <li>Engine · <b>Alfa</b></li>
+        <li>Browser · <b>Playwright</b></li>
+        <li>Works with any framework</li>
+      </ul>
+    </header>
+
+    <div class="layout">
+      <nav class="toc" aria-label="Steps">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#s0"><span class="n">0</span> <span class="lbl">Prerequisites</span></a></li>
+          <li><a href="#s1"><span class="n">1</span> <span class="lbl">Install</span></a></li>
+          <li><a href="#s2"><span class="n">2</span> <span class="lbl">Playwright config</span></a></li>
+          <li><a href="#s3"><span class="n">3</span> <span class="lbl">The audit test</span></a></li>
+          <li><a href="#s4"><span class="n">4</span> <span class="lbl">npm script</span></a></li>
+          <li><a href="#s5"><span class="n">5</span> <span class="lbl">Run locally</span></a></li>
+          <li><a href="#s6"><span class="n">6</span> <span class="lbl">The workflow</span></a></li>
+          <li><a href="#s7"><span class="n">7</span> <span class="lbl">Commit &amp; PR</span></a></li>
+          <li><a href="#s8"><span class="n">8</span> <span class="lbl">Require the check</span></a></li>
+          <li><a href="#s9"><span class="n">9</span> <span class="lbl">Prove it blocks</span></a></li>
+          <li><a href="#scope"><span class="n">±</span> <span class="lbl">Change strictness</span></a></li>
+        </ol>
+      </nav>
+
+      <main class="content" id="guide">
+        <section class="step prep" id="s0" aria-labelledby="s0-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">0</span><h2 id="s0-h">Prerequisites</h2></div>
+          <p>You need three things before you start. The whole setup assumes you can serve your app at a local URL — if it runs in a browser, Alfa can audit it.</p>
+          <ul class="check">
+            <li><strong>Node 20+</strong> — check with <code class="inline">node -v</code></li>
+            <li>Your app <strong>runs locally at a URL</strong> — note the start command and port (e.g. <code class="inline">npm run dev</code> on <code class="inline">5173</code>)</li>
+            <li>Code is in a <strong>GitHub repository</strong> with <strong>Actions enabled</strong> (the default)</li>
+          </ul>
+          <p class="tip">The one thing you customize in this whole guide is <strong>Step&nbsp;2</strong> — how your app is served. Everything else is copy-paste.</p>
+        </section>
+
+        <section class="step" id="s1" aria-labelledby="s1-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">1</span><h2 id="s1-h">Install dependencies</h2></div>
+          <p>Three dev dependencies: the Playwright test runner, the Alfa audit engine, and the bridge between them. Then download the one browser Alfa audits in.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>terminal</span><button class="copy" type="button" aria-label="Copy install commands"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>npm install -D @playwright/test @siteimprove/alfa-playwright @siteimprove/alfa-test-utils
+npx playwright install chromium</pre>
+          </div>
+          <p class="tip">Using pnpm, yarn, or bun? Swap <code class="inline">npm install -D</code> for your equivalent.</p>
+        </section>
+
+        <section class="step" id="s2" aria-labelledby="s2-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">2</span><h2 id="s2-h">Add <code class="inline">playwright.config.ts</code></h2></div>
+          <p>This boots your app before the audit and points the browser at it. Paste it into your project root, then change the <strong>two ⬅ lines</strong> to match your app.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>playwright.config.ts</span><button class="copy" type="button" aria-label="Copy playwright.config.ts"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>import { defineConfig, devices } from "@playwright/test";
+
+const PORT = 5173;                          <span class="cmt">// ⬅ your app's port</span>
+const BASE_URL = `http://localhost:${PORT}`;
+
+export default defineConfig({
+  testDir: "./tests",
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: [["html", { open: "never" }], ["list"]],
+  use: { baseURL: BASE_URL, trace: "on-first-retry" },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  webServer: {
+    command: "npm run dev",                 <span class="cmt">// ⬅ how to start YOUR app</span>
+    url: BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+});</pre>
+          </div>
+          <p>Pick your <code class="inline">command</code> and <code class="inline">PORT</code>:</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Stack</th><th scope="col">command</th><th scope="col">port</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Vite</th><td><code>npm run dev</code></td><td><span class="port">5173</span></td></tr>
+                <tr><th scope="row">Next.js</th><td><code>npm run build &amp;&amp; npm run start</code></td><td><span class="port">3000</span></td></tr>
+                <tr><th scope="row">Create React App</th><td><code>npm start</code></td><td><span class="port">3000</span></td></tr>
+                <tr><th scope="row">Angular</th><td><code>npm start</code></td><td><span class="port">4200</span></td></tr>
+                <tr><th scope="row">SvelteKit</th><td><code>npm run build &amp;&amp; npm run preview</code></td><td><span class="port">4173</span></td></tr>
+                <tr><th scope="row">Astro</th><td><code>npm run build &amp;&amp; npm run preview</code></td><td><span class="port">4321</span></td></tr>
+                <tr><th scope="row">Static files</th><td><code>npx serve . -l 5173</code></td><td><span class="port">5173</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note">Already deploy a preview URL per PR (Netlify, Vercel, Pages)? Drop <code class="inline">webServer</code> entirely and point <code class="inline">baseURL</code> at that URL instead.</div>
+        </section>
+
+        <section class="step" id="s3" aria-labelledby="s3-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">3</span><h2 id="s3-h">Add the audit test</h2></div>
+          <p>This is the gate itself: render the page, hand the live DOM to Alfa, and fail if any rule reports a failure. It's the same for every framework.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>tests/accessibility.spec.ts</span><button class="copy" type="button" aria-label="Copy the accessibility test"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>import { test, expect } from "@playwright/test";
+import { Playwright } from "@siteimprove/alfa-playwright";
+import { Audit, Logging, Rules } from "@siteimprove/alfa-test-utils";
+
+<span class="cmt">// Enforce WCAG 2.1 A/AA + Best Practices + ARIA. (Change scope at the bottom.)</span>
+const conformanceTarget: typeof Rules.wcag21aaFilter = (rule) =&gt;
+  Rules.wcag21aaFilter(rule) ||
+  Rules.bestPracticesFilter(rule) ||
+  Rules.ARIAFilter(rule);
+
+test("home page has no accessibility violations", async ({ page }) =&gt; {
+  await page.goto("/");
+
+  const alfaPage = await Playwright.toPage(await page.evaluateHandle("document"));
+  const result = await Audit.run(alfaPage, { rules: { include: conformanceTarget } });
+
+  Logging.fromAudit(result).print(); <span class="cmt">// readable report in the job log</span>
+
+  const failing = result.resultAggregates.filter((a) =&gt; a.failed &gt; 0);
+  expect(failing.size).toBe(0);
+});</pre>
+          </div>
+          <p class="tip">Guard more pages: copy the <code class="inline">test(...)</code> block and change the <code class="inline">page.goto()</code> path.</p>
+        </section>
+
+        <section class="step" id="s4" aria-labelledby="s4-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">4</span><h2 id="s4-h">Add the npm script</h2></div>
+          <p>One script so the same command runs locally and in CI.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>package.json</span><button class="copy" type="button" aria-label="Copy the npm script"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>{
+  "scripts": {
+    "test:a11y": "playwright test"
+  }
+}</pre>
+          </div>
+        </section>
+
+        <section class="step" id="s5" aria-labelledby="s5-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">5</span><h2 id="s5-h">Run it locally</h2></div>
+          <p>Confirm the gate works on your machine before wiring CI. Playwright starts your server, Alfa audits it, and the command exits non-zero on any violation.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>terminal</span><button class="copy" type="button" aria-label="Copy the run command"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>npm run test:a11y</pre>
+          </div>
+          <ul class="check">
+            <li>It passes — or it lists <strong>real violations</strong> to fix (or narrow the scope in Step&nbsp;±)</li>
+            <li>Open the full report: <code class="inline">npx playwright show-report</code></li>
+          </ul>
+        </section>
+
+        <section class="step" id="s6" aria-labelledby="s6-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">6</span><h2 id="s6-h">Add the GitHub Actions workflow</h2></div>
+          <p>This runs the exact same audit on every push and pull request, and uploads the HTML report as an artifact.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>.github/workflows/accessibility.yml</span><button class="copy" type="button" aria-label="Copy the workflow"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>name: Accessibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: a11y-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  accessibility:
+    name: Accessibility audit (Alfa)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browser (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Alfa accessibility audit
+        run: npm run test:a11y
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30</pre>
+          </div>
+          <p class="tip">The CI step uses <code class="inline">--with-deps</code> (installs Linux libraries); your local Step&nbsp;1 doesn't need it.</p>
+        </section>
+
+        <section class="step" id="s7" aria-labelledby="s7-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">7</span><h2 id="s7-h">Commit, push, and open a PR</h2></div>
+          <p>Push it on a branch and open a pull request — the check runs on the PR automatically.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>terminal</span><button class="copy" type="button" aria-label="Copy the git commands"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>git checkout -b ci/alfa-a11y
+git add playwright.config.ts tests/accessibility.spec.ts package.json package-lock.json .github/workflows/accessibility.yml
+git commit -m "ci: add Alfa accessibility gate"
+git push -u origin ci/alfa-a11y</pre>
+          </div>
+          <ul class="check"><li>Open a <strong>pull request into <code class="inline">main</code></strong> and watch the <strong>Accessibility audit (Alfa)</strong> check run</li></ul>
+        </section>
+
+        <section class="step" id="s8" aria-labelledby="s8-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">8</span><h2 id="s8-h">Make the check required</h2></div>
+          <p>A green check doesn't block anything on its own. To stop merges on violations, mark it required — in the GitHub UI, <strong>after the check has run once</strong> (it only appears in the list once it exists).</p>
+          <ol class="clicks">
+            <li>Repo → <strong>Settings → Rules → Rulesets → New branch ruleset</strong> (or <strong>Settings → Branches → Add rule</strong>)</li>
+            <li>Target branch: <strong>main</strong></li>
+            <li>Enable <strong>Require status checks to pass</strong></li>
+            <li>Search for and select <strong>Accessibility audit (Alfa)</strong></li>
+            <li>Enable <strong>Require a pull request before merging</strong> <em>(recommended)</em></li>
+            <li><strong>Save</strong></li>
+          </ol>
+          <div class="note"><strong>Now any PR with a WCAG violation is blocked from merging.</strong></div>
+        </section>
+
+        <section class="step" id="s9" aria-labelledby="s9-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true">9</span><h2 id="s9-h">Prove the gate actually blocks</h2></div>
+          <p>Worth doing once so you trust it. On a scratch branch, introduce a violation and watch CI go red.</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>an intentional violation</span><button class="copy" type="button" aria-label="Copy the example violation"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>&lt;!-- image with no alt text — fails WCAG 1.1.1 --&gt;
+&lt;img src="logo.png"&gt;</pre>
+          </div>
+          <ul class="check">
+            <li>Push it → confirm the check turns <strong>red</strong> and the merge is blocked</li>
+            <li>Delete the scratch branch — you're done ✅</li>
+          </ul>
+        </section>
+
+        <section class="step" id="scope" aria-labelledby="scope-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true" style="font-size:1.2rem">±</span><h2 id="scope-h">Change the strictness</h2></div>
+          <p>The audit's scope is just the <code class="inline">conformanceTarget</code> predicate from Step&nbsp;3. Swap the filters to move the bar.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Goal</th><th scope="col">Replace the body with</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">WCAG 2.1 AA only</th><td><code>Rules.wcag21aaFilter(rule)</code></td></tr>
+                <tr><th scope="row">Latest AA (WCAG 2.2)</th><td><code>Rules.aaFilter(rule)</code></td></tr>
+                <tr><th scope="row">Everything, incl. AAA</th><td>omit the <code>rules</code> option in <code>Audit.run()</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note warn"><strong>Retrofitting an existing site?</strong> Start at WCAG&nbsp;2.1&nbsp;AA only, get the gate green, mark it required, <em>then</em> ratchet the scope up. A gate that's red on day one gets disabled by day three.</div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <ul class="foot-links">
+        <li><a href="https://github.com/lsa-mis/a11ytestingCICD">Reference repo ↗</a></li>
+        <li><a href="https://github.com/lsa-mis/a11ytestingCICD/blob/main/docs/CHECKLIST.md">Checklist ↗</a></li>
+        <li><a href="https://github.com/lsa-mis/a11ytestingCICD/blob/main/docs/CI-ACCESSIBILITY-GUIDE.md">Full guide ↗</a></li>
+        <li><a href="https://github.com/siteimprove/alfa">Alfa engine ↗</a></li>
+        <li><a href="https://playwright.dev/">Playwright ↗</a></li>
+      </ul>
+      <p class="foot-note">
+        <b>Scope check.</b> This gate catches the machine-detectable slice of WCAG — missing names,
+        contrast, broken ARIA, unlabeled controls — and stops those from regressing. Reading order,
+        meaningful alt text, and keyboard operability of custom widgets still need a human. Treat it
+        as a floor that never drops, not a certificate.
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    // Theme toggle
+    (function () {
+      var btn = document.querySelector(".theme-toggle");
+      if (!btn) return;
+      function label() {
+        var d = document.documentElement.getAttribute("data-theme") === "dark";
+        btn.setAttribute("aria-label", d ? "Switch to light theme" : "Switch to dark theme");
+      }
+      label();
+      btn.addEventListener("click", function () {
+        var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        try { localStorage.setItem("theme", next); } catch (e) {}
+        label();
+      });
+    })();
+
+    // Copy buttons
+    document.querySelectorAll(".copy").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var block = btn.closest(".code");
+        var pre = block && block.querySelector("pre");
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          btn.setAttribute("data-state", "ok");
+          setTimeout(function () { btn.removeAttribute("data-state"); }, 1500);
+        };
+        var fallback = function () {
+          var ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand("copy"); done(); } catch (e) {}
+          document.body.removeChild(ta);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, fallback);
+        } else {
+          fallback();
+        }
+      });
+    });
+
+    // Scroll-spy: highlight the current step in the table of contents
+    (function () {
+      var links = {};
+      document.querySelectorAll(".toc a").forEach(function (a) {
+        links[a.getAttribute("href").slice(1)] = a;
+      });
+      var current = null;
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            if (current) current.removeAttribute("aria-current");
+            var a = links[entry.target.id];
+            if (a) { a.setAttribute("aria-current", "true"); current = a; }
+          }
+        });
+      }, { rootMargin: "-10% 0px -75% 0px", threshold: 0 });
+      document.querySelectorAll("main .step[id]").forEach(function (s) { obs.observe(s); });
+    })();
+  </script>
+</body>
+</html>

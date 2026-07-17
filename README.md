@@ -1,44 +1,58 @@
 # Alfa A11y CI/CD
 
-A small front-end project that demonstrates how to wire **[Siteimprove Alfa](https://github.com/siteimprove/alfa)** — an open, standards-based accessibility conformance testing engine — into a **GitHub Actions CI/CD pipeline**.
+[![Accessibility audit (Alfa)](https://github.com/lsa-mis/a11ytestingCICD/actions/workflows/accessibility.yml/badge.svg)](https://github.com/lsa-mis/a11ytestingCICD/actions/workflows/accessibility.yml)
 
-Every push and pull request renders the site in a real browser, audits the DOM against WCAG (via Alfa's ACT rules), and **fails the build if there are accessibility violations**.
+A small front-end project that demonstrates how to wire **[Siteimprove Alfa](https://github.com/siteimprove/alfa)**
+— an open, standards-based accessibility conformance testing engine — into a
+**GitHub Actions CI/CD pipeline**.
 
-> **Want to do this in your own project?** Start with the **[copy-paste Setup Checklist](docs/CHECKLIST.md)** (~15 min), or read the full **[CI Accessibility Guide](docs/CI-ACCESSIBILITY-GUIDE.md)** — a framework-agnostic walkthrough covering React, Next.js, Vue, Angular, Svelte, Astro, plain static sites, and auditing a deployed preview URL.
+Every push and pull request renders the site in a real browser, audits the DOM
+against WCAG (via Alfa's ACT rules), and **fails the build if there are
+accessibility violations**.
+
+> ### 🚀 Want to do this in your own project?
+>
+> - **[Step-by-step guide site](https://lsa-mis.github.io/a11ytestingCICD/a11ycicdguideforgithub/)** — the hosted, visual walkthrough (GitHub Pages)
+> - **[Copy-paste checklist](docs/CHECKLIST.md)** — ~15 minutes, top to bottom
+> - **[Full CI accessibility guide](docs/CI-ACCESSIBILITY-GUIDE.md)** — every piece explained, for React, Next.js, Vue, Angular, Svelte, Astro, static sites, or a deployed preview URL
 
 ## Stack
 
-| Concern            | Tool                                                        |
-| ------------------ | ----------------------------------------------------------- |
-| Front-end          | [Vite](https://vitejs.dev/) + TypeScript (vanilla)          |
-| Browser automation | [Playwright](https://playwright.dev/)                       |
+| Concern            | Tool                                                            |
+| ------------------ | --------------------------------------------------------------- |
+| Front-end          | [Vite](https://vitejs.dev/) + TypeScript (vanilla)              |
+| Browser automation | [Playwright](https://playwright.dev/)                           |
 | Accessibility      | `@siteimprove/alfa-test-utils` + `@siteimprove/alfa-playwright` |
-| CI/CD              | GitHub Actions (`.github/workflows/accessibility.yml`)      |
+| CI/CD              | GitHub Actions (`.github/workflows/accessibility.yml`)          |
 
 ## Project layout
 
 ```
 .
-├── index.html                     # Accessible landing page (Vite entry)
+├── index.html                          # Accessible landing page (Vite entry)
 ├── src/
-│   ├── main.ts                    # Progressive-enhancement JS (form, footer year)
-│   └── style.css                  # High-contrast, keyboard-friendly styles
+│   ├── main.ts                         # Progressive-enhancement JS
+│   └── style.css                       # High-contrast, keyboard-friendly styles
 ├── tests/
-│   └── accessibility.spec.ts      # The Alfa accessibility gate
-├── playwright.config.ts           # Boots the dev server + runs the audit
-├── vite.config.ts
-└── .github/workflows/accessibility.yml   # The CI/CD pipeline
+│   └── accessibility.spec.ts           # The Alfa accessibility gate
+├── playwright.config.ts                # Boots the dev server + runs the audit
+├── .github/workflows/accessibility.yml # The CI/CD pipeline
+├── a11ycicdguideforgithub/             # The hosted step-by-step guide site (GitHub Pages)
+└── docs/
+    ├── CHECKLIST.md                    # Copy-paste setup checklist
+    ├── CI-ACCESSIBILITY-GUIDE.md       # Full framework-agnostic guide
+    └── ACCESSIBILITY.md                # How this repo's gate works
 ```
 
-## Getting started
+## Quick start
 
 ```bash
 npm install                       # install dependencies
 npx playwright install chromium   # download the browser Alfa audits in
-npm run dev                        # http://localhost:5173
+npm run dev                       # http://localhost:5173
 ```
 
-## Running the accessibility audit locally
+## Run the accessibility audit locally
 
 ```bash
 npm test
@@ -64,8 +78,8 @@ npm run build       # type-check + production build
    uploads the Playwright HTML report as a build artifact. A WCAG violation
    fails this job and therefore blocks the merge.
 
-To enforce the gate on merges, mark the **Accessibility audit (Alfa)** check as
-required in your branch protection rules.
+To enforce the gate, mark the **Accessibility audit (Alfa)** check as required in
+your branch protection / ruleset for `main`.
 
 ## How the gate works (in code)
 
@@ -85,10 +99,14 @@ const failingRules = alfaResult.resultAggregates.filter((a) => a.failed > 0);
 expect(failingRules.size).toBe(0);                          // fail on violations
 ```
 
-See **[docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)** for the full setup: the
-conformance target, ARIA-label guidance, pass/fail semantics, and how to change
-the target. To guard more pages, add another `test(...)` block that navigates to
-the route and reuses `conformanceTarget`.
+## Documentation
+
+| Doc                                                                                                   | Use it to…                                          |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **[Step-by-step guide site](https://lsa-mis.github.io/a11ytestingCICD/a11ycicdguideforgithub/)**      | Follow a hosted, visual walkthrough                 |
+| **[docs/CHECKLIST.md](docs/CHECKLIST.md)**                                                            | Copy-paste the setup into your project (~15 min)    |
+| **[docs/CI-ACCESSIBILITY-GUIDE.md](docs/CI-ACCESSIBILITY-GUIDE.md)**                                  | Understand every piece + adapt to any framework     |
+| **[docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)**                                                    | See how the gate is configured in this repo         |
 
 ## Optional: publish results to Siteimprove
 
@@ -107,9 +125,6 @@ online report. When they're absent, the local pass/fail gate still runs.
 
 ## Learn more
 
-- **[Setup Checklist](docs/CHECKLIST.md)** — copy-paste steps to add the gate to your own project (~15 min)
-- **[Add this to your own project](docs/CI-ACCESSIBILITY-GUIDE.md)** — the framework-agnostic setup guide
-- **[docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)** — how the gate works in this repo
 - Alfa engine — https://github.com/siteimprove/alfa
 - Accessibility Code Checker docs — https://alfa.siteimprove.com/code-checker
 - Worked examples — https://github.com/Siteimprove/alfa-examples
