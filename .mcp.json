@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "a11y-alfa": {
+      "command": "node",
+      "args": ["a11y-mcp/dist/server.js"]
+    }
+  }
+}
