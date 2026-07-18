@@ -30,6 +30,27 @@ flowchart LR
 
 ---
 
+## Why an MCP, not just the test?
+
+The [CI gate](../tests/accessibility.spec.ts) already runs Alfa — so what does wrapping it in MCP add? Not a *better* audit (same engine, same rules), but a different **shape**:
+
+| | CI gate (`accessibility.spec.ts`) | this MCP server |
+| --- | --- | --- |
+| **Invoked by** | the pipeline, automatically | an agent / you, on demand, in plain language |
+| **Audits** | fixed routes, `page.goto()` static load | any URL or HTML **+ interactive states** (`audit_state`) |
+| **Blocks merges** | ✅ the enforcement authority | ❌ advisory |
+| **Output** | pass/fail exit code | report **+ JSON** an agent can act on (incl. the `cantTell` bucket) |
+
+Three things it unlocks:
+
+1. **Dynamic states the gate can't see** — the gate only audits what `page.goto("/")` renders. `audit_state` drives clicks/fills first, so it audits a form's *error* state, an *open* modal, an *expanded* panel, an *authenticated* view — where real bugs hide.
+2. **A conversational, composable capability** — "audit this after I submit an invalid email" is one call, no test file to write; it plugs into any MCP client, and even a local model.
+3. **Engine parity, not a second opinion** — unlike bolting on axe-core, findings match the gate exactly, so a green here is a green in CI.
+
+**It does not replace the gate.** It doesn't block merges and does nothing in headless CI (there's no agent there to drive it). For "does route X pass on every PR," the deterministic test wins. This is the **authoring & triage** tool *alongside* the gate — it speeds up getting to green; the gate is what keeps you there.
+
+---
+
 ## Quick start
 
 ```bash
