@@ -60,7 +60,14 @@ function auditOptions(c: Conformance) {
 let browserPromise: Promise<Browser> | null = null;
 async function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
-    browserPromise = chromium.launch({ headless: true });
+    // Inside a container, Chromium's sandbox needs extra privileges; the image
+    // sets A11Y_MCP_NO_SANDBOX=1 so we drop the sandbox (safe: local, trusted
+    // pages only). On a normal host the sandbox stays on.
+    const args =
+      process.env.A11Y_MCP_NO_SANDBOX === "1"
+        ? ["--no-sandbox", "--disable-dev-shm-usage"]
+        : [];
+    browserPromise = chromium.launch({ headless: true, args });
   }
   return browserPromise;
 }

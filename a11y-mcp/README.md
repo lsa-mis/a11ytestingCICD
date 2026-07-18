@@ -81,6 +81,38 @@ Use an absolute path if the client's working directory isn't the repo root.
 
 ---
 
+## Run on ARM64 (e.g. NVIDIA DGX Spark)
+
+The server is architecture-clean (Node + Playwright Chromium + Alfa — no native or arch-specific bits), and the included [`Dockerfile`](./Dockerfile) is based on Playwright's **multi-arch** image. So it runs natively on `aarch64` hosts like an NVIDIA DGX Spark (DGX OS / Ubuntu "noble").
+
+Build it (on the arm64 host, or cross-build with `--platform linux/arm64`):
+
+```bash
+cd a11y-mcp
+docker build -t a11y-alfa-mcp .
+```
+
+Point any MCP client at the container — it speaks stdio, so the client launches `docker run -i`:
+
+```json
+{
+  "mcpServers": {
+    "a11y-alfa": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--ipc=host", "a11y-alfa-mcp"]
+    }
+  }
+}
+```
+
+- `-i` keeps stdin open for the JSON-RPC stream; `--rm` cleans up; `--ipc=host` gives Chromium enough shared memory.
+- The image sets `A11Y_MCP_NO_SANDBOX=1` (Chromium can't sandbox unprivileged in most containers) and runs as the non-root `pwuser`.
+- To audit a page running on the **host**, add `--add-host=host.docker.internal:host-gateway` and target `http://host.docker.internal:5173/`.
+
+> On a DGX Spark this is the arch-native **audit engine**; pair it with a local model (Ollama/vLLM) driving an MCP-capable agent. That local-model wiring is deferred — this step is just ARM64 support.
+
+---
+
 ## Tools
 
 ### `audit_url`
@@ -213,8 +245,10 @@ The scope predicate is the exact one from the CI spec — that's what guarantees
 ```
 a11y-mcp/
 ├── src/
-│   ├── server.ts    # MCP wiring: registers audit_url + audit_html over stdio
+│   ├── server.ts    # MCP wiring: registers audit_url / audit_html / audit_state
 │   └── audit.ts     # browser lifecycle, Alfa audit, report formatting
+├── Dockerfile       # ARM64-ready image (Playwright base) — see "Run on ARM64"
+├── .dockerignore
 ├── smoke.mjs        # spawns the built server and runs a pass + fail audit
 ├── demo.mjs         # audits the real running app + two dynamic states
 ├── package.json
