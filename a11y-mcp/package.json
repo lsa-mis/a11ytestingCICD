@@ -12,7 +12,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start": "node dist/server.js",
-    "smoke": "node smoke.mjs"
+    "smoke": "node smoke.mjs",
+    "demo": "node demo.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

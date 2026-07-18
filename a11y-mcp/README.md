@@ -23,7 +23,7 @@ It is a **triage & authoring aid, never a replacement** for the gate. The commit
 
 ```mermaid
 flowchart LR
-    A["Agent<br/>(Claude Code, Cursor,<br/>local model…)"] -->|"audit_url · audit_html"| M["a11y-alfa<br/>MCP server"]
+    A["Agent<br/>(Claude Code, Cursor,<br/>local model…)"] -->|"audit_url · audit_html · audit_state"| M["a11y-alfa<br/>MCP server"]
     M --> B["Headless<br/>Chromium"] --> D["Live DOM"] --> E["Siteimprove Alfa<br/>· same engine as CI gate ·"]
     E -->|"verdict + titled issues + JSON"| A
 ```
@@ -99,6 +99,17 @@ Render a raw HTML document/fragment and audit it — great for a component or ag
 | `html`        | string                                                   | —  (required)    |
 | `conformance` | same enum as above                                       | `wcag21aa-plus`  |
 
+### `audit_state`
+Navigate to a URL, run a short sequence of actions, **then** audit the resulting state — reach a modal, a filled/errored form, or an expanded panel that a static audit never sees.
+
+| Param         | Type                                                  | Default         |
+| ------------- | ----------------------------------------------------- | --------------- |
+| `url`         | string (URL)                                          | —  (required)   |
+| `actions`     | array of `{ type, selector, value?, key?, timeout? }` | —  (required)   |
+| `conformance` | same enum                                             | `wcag21aa-plus` |
+
+`type` is `click` · `fill` (needs `value`) · `press` (needs `key`) · `waitFor`.
+
 ### Example — a failing audit
 
 Calling `audit_html` on `<img src="x.png"><input type="text"><button></button>` returns:
@@ -132,6 +143,18 @@ Siteimprove found accessibility issues:
 
 The human-readable block is the *same report the CI job prints*. The JSON block is for programmatic use. A clean page returns `verdict: "pass"` with `This page contains 0 issues.`
 
+### Example — auditing the real app and its dynamic states
+
+`npm run demo` (with the parent dev server running) audits the live site plus two states the static gate can't reach:
+
+```text
+audit_url    http://localhost:5173/                                   → PASS (0 issues)
+audit_state  fill(#email) → click(button[type=submit])  (error state)  → PASS (0 issues)
+audit_state  click(.faq-item summary)                (expanded FAQ)    → PASS (0 issues)
+```
+
+That middle line is the point: the form's **error state** only exists after interaction, so the deterministic `page.goto("/")` gate never audits it — `audit_state` does.
+
 ---
 
 ## Conformance scopes
@@ -151,7 +174,7 @@ The human-readable block is the *same report the CI job prints*. The JSON block 
 
 - **Triage a red PR** — the gate failed on a route; ask the agent to `audit_url` it, read the titled issues, and fix `index.html` / `src/*` before re-running the deterministic spec.
 - **Check a component in isolation** — `audit_html` a fragment while iterating, no dev server or route needed.
-- **Audit a hard-to-reach state** — pair with a browser-driving MCP (e.g. `@playwright/mcp`): the agent opens a modal / fills a form / logs in, then calls `audit_url` on that state. Turn what it finds into a new `test()` that the gate will guard.
+- **Audit a hard-to-reach state** — use `audit_state` to open a modal, fill/submit a form, or expand a panel, then audit that DOM in one call. (For complex driving, pair with a browser MCP like `@playwright/mcp`.) Turn what it finds into a new `test()` the gate will guard.
 
 ---
 
@@ -193,6 +216,7 @@ a11y-mcp/
 │   ├── server.ts    # MCP wiring: registers audit_url + audit_html over stdio
 │   └── audit.ts     # browser lifecycle, Alfa audit, report formatting
 ├── smoke.mjs        # spawns the built server and runs a pass + fail audit
+├── demo.mjs         # audits the real running app + two dynamic states
 ├── package.json
 └── tsconfig.json
 ```
@@ -202,7 +226,8 @@ a11y-mcp/
 | `npm run build`   | `tsc` → `dist/` |
 | `npm run typecheck` | type-check only |
 | `npm run start`   | run the built server (`node dist/server.js`) |
-| `npm run smoke`   | end-to-end check via a real MCP client |
+| `npm run smoke`   | end-to-end check via a real MCP client (no server needed) |
+| `npm run demo`    | audit the real app + two dynamic states (needs the parent dev server) |
 
 Built on the official [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk), [`playwright`](https://playwright.dev/), and `@siteimprove/alfa-*`.
 

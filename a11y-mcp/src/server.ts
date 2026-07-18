@@ -2,7 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { auditHtml, auditUrl, closeBrowser, type AuditReport, type Conformance } from "./audit.js";
+import { auditHtml, auditState, auditUrl, closeBrowser, type Action, type AuditReport, type Conformance } from "./audit.js";
 
 const conformance = z
   .enum(["wcag21aa-plus", "wcag21aa", "wcag22aa", "all"])
@@ -79,6 +79,41 @@ server.registerTool(
       return toResult(await auditHtml(html, conformance as Conformance));
     } catch (e) {
       return toError("inline HTML", e);
+    }
+  },
+);
+
+const action = z
+  .object({
+    type: z.enum(["click", "fill", "press", "waitFor"]),
+    selector: z.string().describe("CSS or Playwright selector, e.g. '#email' or 'button[type=submit]'"),
+    value: z.string().optional().describe("Text to type (for 'fill')."),
+    key: z.string().optional().describe("Key to press (for 'press', default 'Enter')."),
+    timeout: z.number().optional(),
+  })
+  .describe("One Playwright step.");
+
+server.registerTool(
+  "audit_state",
+  {
+    title: "Drive a page to a state, then audit accessibility (Alfa / WCAG)",
+    description:
+      "Navigate to a URL, run a short sequence of Playwright actions (click / fill / press / waitFor) to reach an interactive state a static audit can't see — an open modal, a filled or errored form, an expanded panel — then audit that live DOM with Alfa. This closes the gap the deterministic gate leaves: dynamic states become auditable, and what you find can become a new committed test.",
+    inputSchema: {
+      url: z.string().url().describe("Absolute URL to start from."),
+      actions: z
+        .array(action)
+        .describe(
+          "Ordered steps, e.g. [{\"type\":\"fill\",\"selector\":\"#email\",\"value\":\"x\"},{\"type\":\"click\",\"selector\":\"button[type=submit]\"}]",
+        ),
+      conformance,
+    },
+  },
+  async ({ url, actions, conformance }) => {
+    try {
+      return toResult(await auditState(url, actions as Action[], conformance as Conformance));
+    } catch (e) {
+      return toError(url, e);
     }
   },
 );

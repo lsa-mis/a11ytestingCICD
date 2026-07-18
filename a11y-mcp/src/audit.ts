@@ -9,6 +9,17 @@ import { Audit, Logging, Rules } from "@siteimprove/alfa-test-utils";
  */
 export type Conformance = "wcag21aa-plus" | "wcag21aa" | "wcag22aa" | "all";
 
+/** A single Playwright step used to reach an interactive state before auditing. */
+export interface Action {
+  type: "click" | "fill" | "press" | "waitFor";
+  selector: string;
+  /** Text for `fill`. */
+  value?: string;
+  /** Key for `press` (default "Enter"). */
+  key?: string;
+  timeout?: number;
+}
+
 export interface AuditReport {
   verdict: "pass" | "fail";
   target: string;
@@ -127,6 +138,61 @@ export async function auditHtml(html: string, c: Conformance): Promise<AuditRepo
   try {
     await page.setContent(html, { waitUntil: "load" });
     return await auditPage(page, c, "inline HTML");
+  } finally {
+    await page.close();
+  }
+}
+
+function describeAction(a: Action): string {
+  switch (a.type) {
+    case "click":
+      return `click(${a.selector})`;
+    case "fill":
+      return `fill(${a.selector})`;
+    case "press":
+      return `press(${a.selector}, ${a.key ?? "Enter"})`;
+    case "waitFor":
+      return `waitFor(${a.selector})`;
+  }
+}
+
+async function runActions(page: Page, actions: Action[]): Promise<void> {
+  for (const a of actions) {
+    const timeout = a.timeout ?? 10_000;
+    switch (a.type) {
+      case "click":
+        await page.click(a.selector, { timeout });
+        break;
+      case "fill":
+        await page.fill(a.selector, a.value ?? "", { timeout });
+        break;
+      case "press":
+        await page.press(a.selector, a.key ?? "Enter", { timeout });
+        break;
+      case "waitFor":
+        await page.waitForSelector(a.selector, { timeout });
+        break;
+    }
+  }
+}
+
+/**
+ * Navigate to a URL, run a short sequence of actions to reach an interactive
+ * state (open a modal, fill/submit a form, expand a panel), then audit that
+ * state — the states a static `page.goto()` audit can never see.
+ */
+export async function auditState(url: string, actions: Action[], c: Conformance): Promise<AuditReport> {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.goto(url, { waitUntil: "load", timeout: 30_000 });
+    await runActions(page, actions);
+    await page.waitForTimeout(100); // let synchronous DOM updates settle
+    const label =
+      actions.length > 0
+        ? `${url} after: ${actions.map(describeAction).join(" → ")}`
+        : url;
+    return await auditPage(page, c, label);
   } finally {
     await page.close();
   }
