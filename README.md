@@ -13,6 +13,7 @@ accessibility violations**.
 > ### 🚀 Want to do this in your own project?
 >
 > - **[Step-by-step guide site](https://lsa-mis.github.io/a11ytestingCICD/a11ycicdguideforgithub/)** — the hosted, visual walkthrough (GitHub Pages)
+> - **[How it works — for Nathan](docs/NATHAN-OVERVIEW.md)** — short, conversational architecture overview
 > - **[Copy-paste checklist](docs/CHECKLIST.md)** — ~15 minutes, top to bottom
 > - **[Full CI accessibility guide](docs/CI-ACCESSIBILITY-GUIDE.md)** — every piece explained, for React, Next.js, Vue, Angular, Svelte, Astro, static sites, or a deployed preview URL
 
@@ -55,12 +56,16 @@ npm run dev                       # http://localhost:5173
 ## Run the accessibility audit locally
 
 ```bash
-npm test
+npm run test:a11y
 ```
 
 Playwright starts the dev server automatically, Alfa audits the rendered page,
-and a readable report is printed to the console. The command exits non-zero if
-any rule fails — the same gate that runs in CI.
+and a developer-facing report index is printed to the console with page links,
+rule guidance, occurrence counts, and the detailed Alfa trail (targets and
+diagnostics). No report files are created locally. The matching nine-sheet Excel
+workbook and structured evidence files are generated only in GitHub Actions and
+uploaded as CI artifacts. The command exits non-zero if any rule fails — the same
+gate that runs in CI.
 
 Other scripts:
 
@@ -75,11 +80,16 @@ npm run build       # type-check + production build
 
 1. **Type-check & build** — `npm ci`, `npm run typecheck`, `npm run build`.
 2. **Accessibility audit (Alfa)** — installs Chromium, runs the Alfa audit, and
-   uploads the Playwright HTML report as a build artifact. A WCAG violation
+   uploads both the Playwright HTML report and the generated accessibility report
+   bundle (XLSX, Markdown, JSON, and CSV) as build artifacts. A WCAG violation
    fails this job and therefore blocks the merge.
 
 To enforce the gate, mark the **Accessibility audit (Alfa)** check as required in
 your branch protection / ruleset for `main`.
+
+For a maintainer-only exception path or a temporary advisory rollout, see
+[Accessibility gate overrides](docs/A11Y-OVERRIDES.md). Normal pull requests should
+remain enforcing.
 
 ## How the gate works (in code)
 
@@ -104,9 +114,11 @@ expect(failingRules.size).toBe(0);                          // fail on violation
 | Doc                                                                                                   | Use it to…                                          |
 | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | **[Step-by-step guide site](https://lsa-mis.github.io/a11ytestingCICD/a11ycicdguideforgithub/)**      | Follow a hosted, visual walkthrough                 |
+| **[docs/NATHAN-OVERVIEW.md](docs/NATHAN-OVERVIEW.md)**                                                   | Get the short architecture explanation              |
 | **[docs/CHECKLIST.md](docs/CHECKLIST.md)**                                                            | Copy-paste the setup into your project (~15 min)    |
 | **[docs/CI-ACCESSIBILITY-GUIDE.md](docs/CI-ACCESSIBILITY-GUIDE.md)**                                  | Understand every piece + adapt to any framework     |
 | **[docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)**                                                    | See how the gate is configured in this repo         |
+| **[docs/A11Y-OVERRIDES.md](docs/A11Y-OVERRIDES.md)**                                                   | Configure an audited bypass or advisory rollout     |
 
 ## Optional: publish results to Siteimprove
 

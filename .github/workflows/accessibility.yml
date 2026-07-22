@@ -7,6 +7,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      accessibility_enforcement:
+        description: "Whether this manually-run audit blocks on failed rules"
+        required: true
+        default: enforce
+        type: choice
+        options:
+          - enforce
+          - advisory
 
 # Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
@@ -68,6 +77,10 @@ jobs:
       - name: Run Alfa accessibility audit
         run: npm run test:a11y
         env:
+          # Default to enforce. Repository admins can temporarily set the
+          # A11Y_ENFORCEMENT Actions variable to advisory for a broad rollout,
+          # while a manual run can choose advisory without changing the variable.
+          A11Y_ENFORCEMENT: ${{ inputs.accessibility_enforcement || vars.A11Y_ENFORCEMENT || 'enforce' }}
           # Optional: set these as repository secrets to publish results to the
           # Siteimprove Intelligence Platform. The audit gate works without them.
           SI_USER_EMAIL: ${{ secrets.SI_USER_EMAIL }}
@@ -82,8 +95,9 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      # The audit writes summary.md / report.json / issues.csv / rules.csv per
-      # route. Uploaded even on failure — that's when the detail matters most.
+      # The audit writes a multi-sheet accessibility-report.xlsx plus summary.md,
+      # report.json, issues.csv, and rules.csv per route. Uploaded even on failure
+      # — that's when the detail matters most.
       - name: Upload accessibility reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
