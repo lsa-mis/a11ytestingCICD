@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Accessibility, Enforced by CI — Siteimprove Alfa + GitHub Actions</title>
+<meta name="description" content="How every push and pull request renders the site in a real browser, audits it against WCAG with the Siteimprove Alfa engine, and fails the build on accessibility violations." />
+<style>
+  :root {
+    --bg: #f4f6fa; --surface: #ffffff; --inset: #eef2f8;
+    --ink: #0f1826; --ink-soft: #33414f; --muted: #5b6a7c;
+    --border: #dce2ec; --border-strong: #c4cdda;
+    --accent: #1358e0; --accent-ink: #0f4cc4; --accent-soft: rgba(19,88,224,0.08); --accent-line: rgba(19,88,224,0.22);
+    --pass: #0a7d43; --pass-soft: rgba(10,125,67,0.12);
+    --fail: #c62a24; --fail-soft: rgba(198,42,36,0.10);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0f16; --surface: #121a25; --inset: #0e1620;
+      --ink: #e9eef5; --ink-soft: #c3cdda; --muted: #8d9bad;
+      --border: #212c3a; --border-strong: #303d4f;
+      --accent: #5b9dff; --accent-ink: #82b4ff; --accent-soft: rgba(91,157,255,0.12); --accent-line: rgba(91,157,255,0.28);
+      --pass: #37c07c; --pass-soft: rgba(55,192,124,0.14);
+      --fail: #ff6f64; --fail-soft: rgba(255,111,100,0.14);
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: var(--sans); color: var(--ink);
+    background: radial-gradient(115% 80% at 88% -8%, var(--accent-soft), transparent 58%), var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+  .deck { position: relative; }
+  .slide {
+    display: none; min-height: calc(100vh - 2rem);
+    padding: clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 5vw, 4rem) 5.5rem;
+    flex-direction: column; justify-content: center;
+    max-width: 1040px; margin-inline: auto;
+  }
+  .slide.active { display: flex; }
+  /* Slides are focused programmatically for screen-reader context (tabindex="-1"),
+     not reachable by Tab — so no visible ring here. Controls keep theirs. */
+  .slide:focus, .slide:focus-visible { outline: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .slide.active { animation: fade .32s ease both; }
+  }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px);} to { opacity:1; transform:none; } }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: .6rem; margin: 0 0 1.1rem;
+    font: 600 .72rem/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--accent-ink);
+  }
+  .eyebrow::before { content:""; width:1.6rem; height:2px; background:var(--accent); border-radius:2px; }
+
+  h1 { font-size: clamp(2.3rem, 6vw, 4rem); line-height:1.03; letter-spacing:-.025em; font-weight:800; margin:0 0 1rem; text-wrap:balance; }
+  h1 .accent { color: var(--accent-ink); }
+  h2 { font-size: clamp(1.7rem, 4.2vw, 2.7rem); line-height:1.1; letter-spacing:-.02em; font-weight:780; margin:0 0 1.1rem; text-wrap:balance; }
+  .lede { font-size: clamp(1.05rem, 2.1vw, 1.35rem); color: var(--ink-soft); max-width: 60ch; margin: 0 0 1.5rem; text-wrap:pretty; }
+  .big { font-size: clamp(1.4rem, 3.2vw, 2rem); line-height:1.25; font-weight:700; letter-spacing:-.015em; margin:0 0 1.2rem; max-width:22ch; }
+
+  ul.points { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1rem; max-width:62ch; }
+  ul.points li { position:relative; padding-left:2rem; font-size:clamp(1rem,1.9vw,1.15rem); color:var(--ink-soft); }
+  ul.points li::before {
+    content:""; position:absolute; left:0; top:.55em; width:.6rem; height:.6rem;
+    border-radius:2px; background:var(--accent); transform:rotate(45deg);
+  }
+  ul.points li b { color: var(--ink); font-weight:700; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:.55rem; margin:1.6rem 0 0; padding:0; list-style:none; }
+  .chips li {
+    font:600 .8rem/1 var(--mono); color:var(--ink-soft); background:var(--surface);
+    border:1px solid var(--border); padding:.55rem .75rem; border-radius:99px;
+  }
+  .chips li b { color: var(--accent-ink); }
+
+  .status {
+    display:inline-flex; align-items:center; gap:.7rem; flex-wrap:wrap;
+    font:600 .92rem/1.3 var(--mono); color:var(--ink-soft);
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--pass);
+    border-radius:9px; padding:.8rem 1rem; margin-top:.5rem;
+  }
+  .status .tick { display:inline-grid; place-items:center; width:1.25rem; height:1.25rem; border-radius:99px; background:var(--pass); color:#fff; font-size:.75rem; }
+  .status.bad { border-left-color: var(--fail); }
+  .status.bad .tick { background: var(--fail); }
+  .status .job { color: var(--ink); }
+  .status .ok { color: var(--pass); font-weight:700; }
+  .status .no { color: var(--fail); font-weight:700; }
+
+  .pipe { display:flex; align-items:stretch; gap:.3rem; flex-wrap:wrap; margin-top:.5rem; }
+  .node {
+    flex:1 1 130px; min-width:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:11px; padding:.85rem .8rem; display:flex; flex-direction:column; gap:.35rem;
+  }
+  .node .st { font:700 .64rem/1 var(--mono); letter-spacing:.13em; text-transform:uppercase; color:var(--accent-ink); }
+  .node .t { font-size:.92rem; font-weight:700; letter-spacing:-.01em; }
+  .node.gate { border-color: var(--accent-line); background: linear-gradient(180deg, var(--accent-soft), transparent 60%), var(--surface); }
+  .verd { display:flex; gap:.35rem; flex-wrap:wrap; margin-top:.1rem; }
+  .verd span { font:700 .7rem/1 var(--mono); padding:.3rem .45rem; border-radius:5px; }
+  .verd .p { color:var(--pass); background:var(--pass-soft); }
+  .verd .f { color:var(--fail); background:var(--fail-soft); }
+  .arw { align-self:center; color:var(--border-strong); font:700 1rem/1 var(--mono); padding:0 .1rem; }
+
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+  .col { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.15rem 1.2rem; border-top:3px solid var(--edge, var(--accent)); }
+  .col.good { --edge: var(--pass); }
+  .col.human { --edge: var(--muted); }
+  .col h3 { margin:0 0 .7rem; font-size:1rem; font-weight:750; letter-spacing:-.01em; }
+  .col ul { margin:0; padding-left:1.1rem; display:flex; flex-direction:column; gap:.4rem; }
+  .col li { font-size:.92rem; color:var(--ink-soft); }
+
+  .metrics { display:flex; flex-wrap:wrap; gap:1rem; margin:0 0 1.3rem; }
+  .metric { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:.95rem 1.15rem; min-width:120px; }
+  .metric .n { font:800 1.9rem/1 var(--mono); color:var(--accent-ink); letter-spacing:-.02em; }
+  .metric .l { font-size:.8rem; color:var(--muted); margin-top:.35rem; }
+
+  .note { border:1px solid var(--border); border-left:3px solid var(--accent); background:var(--surface);
+          border-radius:9px; padding:.85rem 1rem; font-size:.92rem; color:var(--ink-soft); max-width:64ch; margin-top:1.2rem; }
+  .note b { color: var(--ink); }
+
+  .bar { position:fixed; left:0; top:0; height:3px; background:var(--accent); width:0; transition:width .25s ease; z-index:30; }
+  .ctl {
+    position:fixed; right:1rem; bottom:1rem; display:flex; align-items:center; gap:.45rem; z-index:30;
+    background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:.4rem .55rem;
+  }
+  .ctl button {
+    width:2rem; height:2rem; display:grid; place-items:center; cursor:pointer;
+    background:transparent; border:1px solid var(--border); border-radius:99px; color:var(--ink-soft); font:700 .9rem/1 var(--sans);
+  }
+  .ctl button:hover:not(:disabled) { border-color:var(--border-strong); color:var(--ink); }
+  .ctl button:disabled { opacity:.35; cursor:default; }
+  .ctl .count { font:600 .78rem/1 var(--mono); color:var(--muted); padding:0 .3rem; font-variant-numeric:tabular-nums; }
+  .hint { position:fixed; left:1rem; bottom:1.15rem; font:500 .74rem/1 var(--mono); color:var(--muted); z-index:30; }
+  @media (max-width:640px){ .hint{display:none} .cols{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div class="bar" id="bar"></div>
+
+<div class="deck" id="deck">
+
+  <section class="slide active" tabindex="-1" aria-label="Slide 1: Title">
+    <p class="eyebrow">Automated accessibility testing in CI/CD</p>
+    <h1>Accessibility,<br><span class="accent">enforced by CI</span></h1>
+    <p class="lede">Every push and pull request renders the site in a real browser, audits it against WCAG, and <b>fails the build</b> if there's a violation.</p>
+    <ul class="chips">
+      <li>Engine · <b>Siteimprove Alfa</b></li>
+      <li>Browser · <b>Playwright</b></li>
+      <li>CI · <b>GitHub Actions</b></li>
+    </ul>
+  </section>
+
+  <section class="slide" tabindex="-1" aria-label="Slide 2: The problem">
+    <h2>Accessibility regresses quietly</h2>
+    <ul class="points">
+      <li><b>Audits are periodic. Code changes daily.</b> A page passes in March and breaks in April.</li>
+      <li><b>Nothing in the pipeline enforces it.</b> Tests, linting, and types are gated — accessibility isn't.</li>
+      <li><b>You find out last.</b> Usually from a user, a complaint, or a compliance review.</li>
+    </ul>
+  </section>
+
+  <section class="slide" tabindex="-1" aria-label="Slide 3: The idea">
+    <p class="eyebrow">The idea</p>
+    <p class="big">A red check on the pull request the moment a WCAG violation is introduced.</p>
+    <p class="status"><span class="tick" aria-hidden="true">✓</span><span class="job">Accessibility audit (Alfa)</span><span class="ok">passed</span></p>
+    <p class="status bad"><span class="tick" aria-hidden="true">✕</span><span class="job">Accessibility audit (Alfa)</span><span class="no">failed — merge blocked</span></p>
+  </section>
+
+  <section class="slide" tabindex="-1" aria-label="Slide 4: How it works">
+    <h2>How it works</h2>
+    <div class="pipe">
+      <div class="node"><span class="st">Trigger</span><span class="t">Push / PR</span></div>
+      <span class="arw" aria-hidden="true">→</span>
+      <div class="node"><span class="st">Serve</span><span class="t">App boots</span></div>
+      <span class="arw" aria-hidden="true">→</span>
+      <div class="node"><span class="st">Render</span><span class="t">Real Chromium</span></div>
+      <span class="arw" aria-hidden="true">→</span>
+      <div class="node"><span class="st">Audit</span><span class="t">Alfa · ACT rules</span></div>
+      <span class="arw" aria-hidden="true">→</span>
+      <div class="node gate"><span class="st">Gate</span><div class="verd"><span class="p">✓ merge</span><span class="f">✕ block</span></div></div>
+    </div>
+    <p class="lede" style="margin-top:1.4rem">It audits the <b>rendered</b> DOM — after CSS and JavaScript — so it sees what users actually get.</p>
+  </section>
+
+  <section class="slide" tabindex="-1" aria-label="Slide 5: What it catches">
+    <h2>What it catches — and what it doesn't</h2>
+    <div class="cols">
+      <div class="col good">
+        <h3>✓ Caught automatically</h3>
+        <ul>
+          <li>Missing image alt text</li>
+          <li>Insufficient colour contrast</li>
+          <li>Unlabelled form fields</li>
+          <li>Buttons / links with no accessible name</li>
+          <li>Broken ARIA roles &amp; states</li>
+          <li>Heading &amp; landmark structure</li>
+        </ul>
+      </div>
+      <div class="col human">
+        <h3>Still needs a human</h3>
+        <ul>
+          <li>Whether alt text is <em>meaningful</em></li>
+          <li>Logical reading order</li>
+          <li>Keyboard flows in custom widgets</li>
+          <li>Screen-reader experience</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note"><b>67 rules</b> — WCAG 2.1 AA + Best Practices + ARIA. It's a <b>floor that never drops</b>, not a certificate of full conformance.</p>
+  </section>
+
+  <section class="slide" tabindex="-1" aria-label="Slide 6: What it takes to implement">
+    <h2>What it takes to implement</h2>
+    <div class="metrics">
+      <div class="metric"><div class="n">3</div><div class="l">dev dependencies</div></div>
+      <div class="metric"><div class="n">2</div><div class="l">files to add</div></div>
+      <div class="metric"><div class="n">1</div><div class="l">workflow + 1 setting</div></div>
+      <div class="metric"><div class="n">~15</div><div class="l">minutes</div></div>
+    </div>
+    <ul class="points">
+      <li><b>Framework-agnostic</b> — React, Next.js, Vue, Angular, Svelte, Astro, a static site, or a deployed preview URL.</li>
+      <li><b>The only thing you customise</b> is how your app is served at a URL. Everything else is copy-paste.</li>
+      <li><b>Then make it required</b> in branch protection so violations actually block the merge.</li>
+    </ul>
+  </section>
+
+  <section class="slide" tabindex="-1" aria-label="Slide 7: Safety and cost">
+    <h2>Safety &amp; cost</h2>
+    <ul class="points">
+      <li><b>Open source (MIT).</b> No licence cost.</li>
+      <li><b>Runs offline, in CI only.</b> No page content or results leave the environment.</li>
+      <li><b>Test-only.</b> Never shipped to end users; no production runtime.</li>
+    </ul>
+    <p class="note"><b>Scoped deliberately:</b> the optional Siteimprove <em>cloud</em> upload is off (no credentials), and scanning behind authentication (1FA/2FA) stays on hold pending security review.</p>
+  </section>
+
+  <section class="slide" tabindex="-1" aria-label="Slide 8: Getting started">
+    <p class="eyebrow">Getting started</p>
+    <h2>Adopting it</h2>
+    <ul class="points">
+      <li><b>Pick a pilot repo</b> — ideally one already shipping.</li>
+      <li><b>Wire it up in ~15 minutes</b> using the step-by-step guide.</li>
+      <li><b>Start at WCAG 2.1 AA</b> → get it green → make it a required check.</li>
+      <li><b>Then ratchet up</b> the rule scope once you're passing.</li>
+    </ul>
+    <p class="note">A gate that's red on day one gets disabled by day three. Get to green first, <b>then</b> tighten. → <a href="./a11ycicdguideforgithub/">Read the step-by-step guide</a></p>
+  </section>
+
+</div>
+
+<p class="hint" aria-hidden="true">← → to navigate</p>
+
+<div class="ctl">
+  <button id="prev" type="button" aria-label="Previous slide">←</button>
+  <span class="count" id="count" aria-live="polite">1 / 8</span>
+  <button id="next" type="button" aria-label="Next slide">→</button>
+</div>
+
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+    var i = 0;
+    var bar = document.getElementById("bar");
+    var count = document.getElementById("count");
+    var prev = document.getElementById("prev");
+    var next = document.getElementById("next");
+
+    function show(n, focus) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach(function (s, k) { s.classList.toggle("active", k === i); });
+      bar.style.width = ((i + 1) / slides.length * 100) + "%";
+      count.textContent = (i + 1) + " / " + slides.length;
+      prev.disabled = i === 0;
+      next.disabled = i === slides.length - 1;
+      if (focus) slides[i].focus();
+      window.scrollTo(0, 0);
+    }
+
+    prev.addEventListener("click", function () { show(i - 1, true); });
+    next.addEventListener("click", function () { show(i + 1, true); });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); show(i + 1, true); }
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(i - 1, true); }
+      else if (e.key === "Home") { e.preventDefault(); show(0, true); }
+      else if (e.key === "End") { e.preventDefault(); show(slides.length - 1, true); }
+    });
+
+    show(0, false);
+  })();
+</script>
+</body>
+</html>
