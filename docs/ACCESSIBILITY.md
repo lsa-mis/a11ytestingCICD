@@ -115,10 +115,16 @@ runs two jobs on push/PR to `main`:
 
 1. **Type-check & build** — `npm run typecheck` + `npm run build`.
 2. **Accessibility audit (Alfa)** — installs Chromium, runs the scoped audit,
-   uploads the Playwright HTML report as an artifact.
+   uploads the Playwright HTML report and the generated accessibility report
+   bundle (XLSX, Markdown, JSON, and CSV) as artifacts. The bundle is generated
+   only in CI; local runs print the actionable Alfa details in the terminal.
 
 Mark **Accessibility audit (Alfa)** as a required status check (Settings →
 Branches) to block merges on violations.
+
+For the maintainer-only bypass list and the temporary non-blocking rollout mode,
+see [Accessibility gate overrides](A11Y-OVERRIDES.md). The normal default remains
+enforcing.
 
 ## Local commands
 

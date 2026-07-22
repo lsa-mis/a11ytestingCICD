@@ -29,7 +29,14 @@ const conformanceTarget: typeof Rules.wcag21aaFilter = (rule) =>
   Rules.bestPracticesFilter(rule) ||
   Rules.ARIAFilter(rule);
 
-test("home page has no accessibility violations", async ({ page }) => {
+/**
+ * Advisory mode keeps the audit and all evidence intact, but does not block the
+ * test on failures. It is intended for a controlled rollout, not per-PR bypasses.
+ * Any value other than the explicit string "advisory" remains enforcing.
+ */
+const enforcement = process.env.A11Y_ENFORCEMENT === "advisory" ? "advisory" : "enforce";
+
+test("home page has no accessibility violations", async ({ page }, testInfo) => {
   // 1. Render the page exactly as a user would receive it.
   await page.goto("/");
 
@@ -59,25 +66,67 @@ test("home page has no accessibility violations", async ({ page }) => {
   // 5. Print a readable report to the job log (with a link if it was uploaded).
   Logging.fromAudit(alfaResult, reportUrl).print();
 
-  // 6. Write durable report files (md / json / csv) into reports/ — the CI
-  //    workflow uploads that folder as a build artifact.
-  const report = writeAccessibilityReport(alfaResult, {
+  // 6. Print a detailed terminal guide in every run. GitHub Actions additionally
+  //    writes the XLSX / JSON / Markdown / CSV bundle and uploads it as an artifact.
+  const report = await writeAccessibilityReport(alfaResult, {
     route: "/",
     url: page.url(),
     title: await page.title(),
     conformance: "WCAG 2.1 AA + Best Practices + ARIA",
     reportUrl,
   });
-  console.log(`Accessibility report written to ${report.directory}/`);
+  if (report.artifactsGenerated) {
+    console.log(`Accessibility CI report written to ${report.directory}/`);
+  } else {
+    console.log("Accessibility local run: terminal details only; no report files created.");
+  }
+  console.log(`Accessibility enforcement: ${enforcement.toUpperCase()}`);
 
-  // 7. Fail the build if any rule reported a failure.
+  // 7. Attach durable files only in CI. Local runs intentionally remain file-free.
+  if (report.artifactsGenerated && report.directory && report.workbook) await Promise.all([
+    testInfo.attach("Accessibility workbook", {
+      path: report.workbook,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    testInfo.attach("Accessibility evidence (JSON)", {
+      path: `${report.directory}/report.json`,
+      contentType: "application/json",
+    }),
+    testInfo.attach("Accessibility summary (Markdown)", {
+      path: `${report.directory}/summary.md`,
+      contentType: "text/markdown",
+    }),
+    testInfo.attach("Accessibility issues (CSV)", {
+      path: `${report.directory}/issues.csv`,
+      contentType: "text/csv",
+    }),
+    testInfo.attach("Accessibility rules (CSV)", {
+      path: `${report.directory}/rules.csv`,
+      contentType: "text/csv",
+    }),
+    testInfo.attach("Accessibility override guidance", {
+      path: "docs/A11Y-OVERRIDES.md",
+      contentType: "text/markdown",
+    }),
+  ]);
+
+  // 8. In enforcing mode, fail the build if any rule reported a failure.
+  //    Advisory mode is deliberately explicit and leaves the report verdict as
+  //    FAIL so it can be triaged without hiding the regression.
   const failingRules = alfaResult.resultAggregates.filter(
     (aggregate) => aggregate.failed > 0,
   );
 
-  expect(
-    failingRules.size,
-    `The page has ${failingRules.size} failing accessibility rule(s). ` +
-      `See the printed report above for details.`,
-  ).toBe(0);
+  if (enforcement === "enforce") {
+    expect(
+      failingRules.size,
+      `The page has ${failingRules.size} failing accessibility rule(s). ` +
+        `See the printed report above for details.`,
+    ).toBe(0);
+  } else if (failingRules.size > 0) {
+    console.warn(
+      `Accessibility advisory mode: ${failingRules.size} failing rule(s) were reported. ` +
+        "The check is allowed to pass; fix or formally bypass the PR before restoring enforcement.",
+    );
+  }
 });
