@@ -81,3 +81,13 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+
+      # The audit writes summary.md / report.json / issues.csv / rules.csv per
+      # route. Uploaded even on failure — that's when the detail matters most.
+      - name: Upload accessibility reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-reports
+          path: reports/
+          retention-days: 30

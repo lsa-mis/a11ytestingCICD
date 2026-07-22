@@ -14,3 +14,7 @@ playwright/.cache/
 *.local
 .DS_Store
 npm-debug.log*
+
+# Generated accessibility reports (produced by the audit, uploaded as a CI artifact)
+reports/*
+!reports/README.md
