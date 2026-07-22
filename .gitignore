@@ -18,3 +18,5 @@ npm-debug.log*
 # Generated accessibility reports (produced by the audit, uploaded as a CI artifact)
 reports/*
 !reports/README.md
+!reports/ci-runs/
+!reports/ci-runs/**
