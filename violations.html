@@ -1,0 +1,140 @@
+<!doctype html>
+<!-- VIOLATION 01 — <html> has no lang attribute (WCAG 3.1.1) -->
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- VIOLATION 02 — viewport blocks zoom (WCAG 1.4.4) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- VIOLATION 03 — no <title> element (WCAG 2.4.2) -->
+    <!-- VIOLATION 04 — meta refresh auto-reloads the page (WCAG 2.2.1) -->
+    <meta http-equiv="refresh" content="1200" />
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 2rem; line-height: 1.6; color: #1a1a1a; background: #fff; }
+      .case { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; margin: 0 0 1rem; }
+      .case h2 { font-size: 1rem; margin: 0 0 .5rem; }
+      .tag { font: 600 .7rem/1 ui-monospace, Menlo, monospace; color: #b00020; letter-spacing: .08em; }
+      /* VIOLATION 05 — text colour contrast far below 4.5:1 (WCAG 1.4.3) */
+      .low-contrast { color: #bfbfbf; background: #ffffff; }
+      /* VIOLATION 06 — link colour contrast below threshold (WCAG 1.4.3) */
+      .low-contrast-link { color: #9fd0ff; background: #ffffff; }
+      table, td, th { border: 1px solid #ccc; border-collapse: collapse; padding: .35rem .6rem; }
+      /* VIOLATION 16 — CSS forces text to capitals (Alfa best practice) */
+      .all-caps { text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    <!-- VIOLATION 07 — no skip link to main content (Alfa best practice) -->
+    <!-- VIOLATION 08 — most content sits outside any landmark (Alfa best practice) -->
+
+    <h1>Accessibility violation showcase</h1>
+    <p>
+      Every block below is <strong>deliberately broken</strong>. This page exists so the
+      Alfa gate has something to catch — it is expected to turn CI <strong>red</strong>.
+    </p>
+
+    <!-- VIOLATION 09 — heading level skips from h1 straight to h4 -->
+    <h4>Skipped heading level (h1 → h4)</h4>
+
+    <div class="case">
+      <p class="tag">01 · image</p>
+      <h2>Image with no text alternative</h2>
+      <img src="/vite.svg" width="48" height="48" />
+    </div>
+
+    <div class="case">
+      <p class="tag">02 · button</p>
+      <h2>Button with no accessible name</h2>
+      <button type="button"></button>
+      <button type="button"><img src="/vite.svg" width="24" height="24" /></button>
+    </div>
+
+    <div class="case">
+      <p class="tag">03 · link</p>
+      <h2>Links with no accessible name</h2>
+      <a href="https://example.com"></a>
+      <a href="https://example.com"><img src="/vite.svg" width="24" height="24" /></a>
+    </div>
+
+    <div class="case">
+      <p class="tag">04 · form</p>
+      <h2>Form fields with no label</h2>
+      <input type="text" />
+      <input type="email" placeholder="Email is only a placeholder, not a label" />
+      <select><option>No label on this select</option></select>
+      <textarea rows="2"></textarea>
+      <!-- VIOLATION 10 — label's for= points at an element that doesn't exist -->
+      <label for="does-not-exist">Orphaned label</label>
+    </div>
+
+    <div class="case">
+      <p class="tag">05 · contrast</p>
+      <h2>Insufficient colour contrast</h2>
+      <p class="low-contrast">This grey text on white is well below the 4.5:1 minimum.</p>
+      <p><a class="low-contrast-link" href="https://example.com">This link is also too light.</a></p>
+    </div>
+
+    <div class="case">
+      <p class="tag">06 · aria</p>
+      <h2>Broken ARIA</h2>
+      <!-- VIOLATION 11 — role that is not a valid ARIA role -->
+      <div role="totally-not-a-role">Invalid role</div>
+      <!-- VIOLATION 12 — aria-labelledby references a missing id -->
+      <button type="button" aria-labelledby="nope-does-not-exist">Labelled by nothing</button>
+      <!-- VIOLATION 13 — aria-hidden on a focusable control -->
+      <button type="button" aria-hidden="true">Hidden but still focusable</button>
+      <!-- VIOLATION 14 — invalid value for an ARIA state -->
+      <div role="checkbox" aria-checked="maybe" tabindex="0">Tri-state gone wrong</div>
+    </div>
+
+    <div class="case">
+      <p class="tag">07 · ids</p>
+      <h2>Duplicate IDs</h2>
+      <span id="duplicate-id">First element with this id</span>
+      <span id="duplicate-id">Second element with the same id</span>
+    </div>
+
+    <div class="case">
+      <p class="tag">08 · frame</p>
+      <h2>iframe with no title</h2>
+      <iframe src="/index.html" width="200" height="60"></iframe>
+    </div>
+
+    <div class="case">
+      <p class="tag">09 · table</p>
+      <h2>Data table with no header cells</h2>
+      <table>
+        <tr><td>Region</td><td>Total</td></tr>
+        <tr><td>Nepal</td><td>1.20</td></tr>
+      </table>
+    </div>
+
+    <div class="case">
+      <p class="tag">10 · heading</p>
+      <h2>Empty heading</h2>
+      <h3></h3>
+    </div>
+
+    <div class="case">
+      <p class="tag">11 · nesting</p>
+      <h2>Nested interactive controls</h2>
+      <a href="https://example.com">Outer link with a <button type="button">nested button</button></a>
+    </div>
+
+    <div class="case">
+      <p class="tag">12 · media</p>
+      <h2>Media with no alternatives</h2>
+      <video src="/no-such-video.mp4" autoplay muted width="200"></video>
+      <audio src="/no-such-audio.mp3" autoplay></audio>
+    </div>
+
+    <div class="case">
+      <p class="tag">13 · casing</p>
+      <h2>Text set entirely in capitals</h2>
+      <p class="all-caps">This sentence is forced to capitals by CSS, which screen readers may spell out letter by letter.</p>
+    </div>
+
+    <!-- VIOLATION 15 — a second <main> landmark on the same page -->
+    <main><p>First main landmark.</p></main>
+    <main><p>Second main landmark — landmarks must be unique.</p></main>
+  </body>
+</html>
