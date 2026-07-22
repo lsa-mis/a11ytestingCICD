@@ -326,6 +326,7 @@
           <li><a href="#s8"><span class="n">8</span> <span class="lbl">Require the check</span></a></li>
           <li><a href="#s9"><span class="n">9</span> <span class="lbl">Prove it blocks</span></a></li>
           <li><a href="#scope"><span class="n">±</span> <span class="lbl">Change strictness</span></a></li>
+          <li><a href="#siteimprove"><span class="n">SI</span> <span class="lbl">Siteimprove (optional)</span></a></li>
         </ol>
       </nav>
 
@@ -581,6 +582,65 @@ git push -u origin ci/alfa-a11y</pre>
             </table>
           </div>
           <div class="note warn"><strong>Retrofitting an existing site?</strong> Start at WCAG&nbsp;2.1&nbsp;AA only, get the gate green, mark it required, <em>then</em> ratchet the scope up. A gate that's red on day one gets disabled by day three.</div>
+        </section>
+
+        <section class="step" id="siteimprove" aria-labelledby="siteimprove-h">
+          <div class="step-head"><span class="step-num" aria-hidden="true" style="font-size:.85rem">SI</span><h2 id="siteimprove-h">Optional: publish results to Siteimprove</h2></div>
+          <p>Everything above runs <strong>fully offline</strong> — the audit happens in your own CI runner and <strong>no page content or results leave your environment</strong>. You never need a Siteimprove account for the gate to work.</p>
+          <p>If your organisation <em>does</em> license the <strong>Siteimprove Intelligence Platform</strong>, you can additionally upload each audit to get dashboards and trends over time. This is <strong>purely opt-in</strong> and controlled by an API token.</p>
+
+          <p>Add three repository secrets under <strong>Settings → Secrets and variables → Actions</strong>:</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Secret</th><th scope="col">Value</th></tr></thead>
+              <tbody>
+                <tr><th scope="row"><code>SI_USER_EMAIL</code></th><td>Your Siteimprove account email</td></tr>
+                <tr><th scope="row"><code>SI_API_KEY</code></th><td>Your Siteimprove API token</td></tr>
+                <tr><th scope="row"><code>SI_SITE_ID</code></th><td>The target site ID</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>Pass them to the audit step in the workflow:</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>.github/workflows/accessibility.yml</span><button class="copy" type="button" aria-label="Copy the workflow env block"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>      - name: Run Alfa accessibility audit
+        run: npm run test:a11y
+        env:
+          SI_USER_EMAIL: ${{ secrets.SI_USER_EMAIL }}
+          SI_API_KEY: ${{ secrets.SI_API_KEY }}
+          SI_SITE_ID: ${{ secrets.SI_SITE_ID }}</pre>
+          </div>
+
+          <p>Then upload the result in the spec — only when all three are present:</p>
+          <div class="code">
+            <div class="code-top"><span class="fname"><span class="dot" aria-hidden="true"></span>tests/accessibility.spec.ts</span><button class="copy" type="button" aria-label="Copy the Siteimprove upload snippet"><svg class="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl-copy">Copy</span><span class="lbl-ok">Copied</span></button></div>
+<pre>import { Audit, Logging, Rules, SIP } from "@siteimprove/alfa-test-utils";
+import { getCommitInformation } from "@siteimprove/alfa-test-utils/git";
+
+const { SI_USER_EMAIL, SI_API_KEY, SI_SITE_ID } = process.env;
+
+<span class="cmt">// No credentials? Skip the upload — the local gate still runs.</span>
+const reportUrl =
+  SI_USER_EMAIL &amp;&amp; SI_API_KEY &amp;&amp; SI_SITE_ID
+    ? await SIP.upload(result, {
+        userName: SI_USER_EMAIL,
+        apiKey: SI_API_KEY,
+        siteID: Number(SI_SITE_ID),
+        commitInformation: await getCommitInformation(),
+      })
+    : undefined;
+
+Logging.fromAudit(result, reportUrl).print(); <span class="cmt">// prints a link when uploaded</span></pre>
+          </div>
+
+          <ul class="check">
+            <li><strong>Safe by default</strong> — if any secret is missing, the upload is skipped entirely and the pass/fail gate behaves exactly as before.</li>
+            <li><strong>Fork pull requests are unaffected</strong> — GitHub doesn't expose secrets to forks, so the upload simply doesn't run.</li>
+            <li><strong>Treat the API token as a credential</strong> — keep it in Actions secrets, never in the repo.</li>
+          </ul>
+
+          <div class="note warn"><strong>Check before you enable it.</strong> Turning this on means audit results leave your environment and reach a third-party service. If you're in an organisation with a security review process, clear it there first — the gate itself needs none of this.</div>
         </section>
       </main>
     </div>
