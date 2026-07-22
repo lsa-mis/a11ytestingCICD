@@ -331,30 +331,7 @@
       </nav>
 
       <main class="content" id="guide">
-        <section class="step prep" id="how-it-works" aria-labelledby="how-it-works-h">
-          <div class="step-head"><span class="step-num" aria-hidden="true">?</span><h2 id="how-it-works-h">How it works — a conversation with Nathan</h2></div>
-          <p><strong>Nathan:</strong> “What actually happens after I push code?” <strong>Answer:</strong> GitHub starts the workflow, Playwright opens the page as a user would, Alfa audits that rendered DOM, and the check either passes or blocks the merge.</p>
-
-          <div class="architecture-flow" role="img" aria-label="Developer push or pull request triggers GitHub Actions. The workflow builds the app, Playwright renders it, Siteimprove Alfa audits the rendered DOM, then GitHub posts a pass or fail check and saves reports.">
-            <div class="architecture-node"><b>Developer</b><span>pushes or opens a PR</span></div>
-            <div class="architecture-arrow" aria-hidden="true">→</div>
-            <div class="architecture-node"><b>GitHub Actions</b><span>installs, builds, runs CI</span></div>
-            <div class="architecture-arrow" aria-hidden="true">→</div>
-            <div class="architecture-node"><b>Playwright + Alfa</b><span>renders the page and audits its DOM</span></div>
-            <div class="architecture-arrow" aria-hidden="true">→</div>
-            <div class="architecture-node"><b>Gate + reports</b><span>pass/fail check, HTML report, XLSX, JSON, CSV</span></div>
-          </div>
-
-          <div class="conversation" aria-live="polite">
-            <p id="nathan-answer"><strong>Nathan:</strong> “Where do I look when it fails?” <strong>Answer:</strong> Start in the CI log’s “where to look” list. It links the audited page and Alfa rule guidance; then download the workbook or open the attached JSON for targets and diagnostics.</p>
-            <div class="conversation-controls" role="group" aria-label="Questions Nathan can ask">
-              <button type="button" data-nathan-answer="trigger" aria-pressed="false">What starts it?</button>
-              <button type="button" data-nathan-answer="audit" aria-pressed="false">What gets checked?</button>
-              <button type="button" data-nathan-answer="failure" aria-pressed="true">Where do I look?</button>
-              <button type="button" data-nathan-answer="gate" aria-pressed="false">How does it block a merge?</button>
-            </div>
-          </div>
-        </section>
+        
 
         <section class="step prep" id="s0" aria-labelledby="s0-h">
           <div class="step-head"><span class="step-num" aria-hidden="true">0</span><h2 id="s0-h">Prerequisites</h2></div>
