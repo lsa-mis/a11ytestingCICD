@@ -4,6 +4,8 @@ import { Playwright } from "@siteimprove/alfa-playwright";
 import { Audit, Logging, Rules, SIP } from "@siteimprove/alfa-test-utils";
 import { getCommitInformation } from "@siteimprove/alfa-test-utils/git";
 
+import { writeAccessibilityReport } from "./support/report";
+
 /**
  * Accessibility gate powered by Siteimprove Alfa (https://github.com/siteimprove/alfa).
  *
@@ -57,7 +59,18 @@ test("home page has no accessibility violations", async ({ page }) => {
   // 5. Print a readable report to the job log (with a link if it was uploaded).
   Logging.fromAudit(alfaResult, reportUrl).print();
 
-  // 6. Fail the build if any rule reported a failure.
+  // 6. Write durable report files (md / json / csv) into reports/ — the CI
+  //    workflow uploads that folder as a build artifact.
+  const report = writeAccessibilityReport(alfaResult, {
+    route: "/",
+    url: page.url(),
+    title: await page.title(),
+    conformance: "WCAG 2.1 AA + Best Practices + ARIA",
+    reportUrl,
+  });
+  console.log(`Accessibility report written to ${report.directory}/`);
+
+  // 7. Fail the build if any rule reported a failure.
   const failingRules = alfaResult.resultAggregates.filter(
     (aggregate) => aggregate.failed > 0,
   );
