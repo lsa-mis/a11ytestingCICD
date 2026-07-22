@@ -36,9 +36,10 @@ const conformanceTarget: typeof Rules.wcag21aaFilter = (rule) =>
  */
 const enforcement = process.env.A11Y_ENFORCEMENT === "advisory" ? "advisory" : "enforce";
 
-test("home page has no accessibility violations", async ({ page }, testInfo) => {
+for (const route of ["/", "/violations.html"]) {
+test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
   // 1. Render the page exactly as a user would receive it.
-  await page.goto("/");
+  await page.goto(route);
 
   // 2. Hand the live DOM to Alfa.
   const documentHandle = await page.evaluateHandle("document");
@@ -69,7 +70,7 @@ test("home page has no accessibility violations", async ({ page }, testInfo) => 
   // 6. Print a detailed terminal guide in every run. GitHub Actions additionally
   //    writes the XLSX / JSON / Markdown / CSV bundle and uploads it as an artifact.
   const report = await writeAccessibilityReport(alfaResult, {
-    route: "/",
+    route,
     url: page.url(),
     title: await page.title(),
     conformance: "WCAG 2.1 AA + Best Practices + ARIA",
@@ -130,3 +131,4 @@ test("home page has no accessibility violations", async ({ page }, testInfo) => 
     );
   }
 });
+}
