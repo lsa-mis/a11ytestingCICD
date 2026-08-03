@@ -332,8 +332,8 @@
 
       <main class="content" id="guide">
         <section class="step prep" id="how-it-works" aria-labelledby="how-it-works-h">
-          <div class="step-head"><span class="step-num" aria-hidden="true">?</span><h2 id="how-it-works-h">How it works — a conversation with Nathan</h2></div>
-          <p><strong>Nathan:</strong> “What actually happens after I push code?” <strong>Answer:</strong> GitHub starts the workflow, Playwright opens the page as a user would, Alfa audits that rendered DOM, and the check either passes or blocks the merge.</p>
+          <div class="step-head"><span class="step-num" aria-hidden="true">?</span><h2 id="how-it-works-h">How the workflow works</h2></div>
+          <p>A push or pull request starts the workflow. Playwright opens the page as a user would, Alfa audits that rendered DOM, and the check either passes or blocks the merge.</p>
 
           <div class="architecture-flow" role="img" aria-label="Developer push or pull request triggers GitHub Actions. The workflow builds the app, Playwright renders it, Siteimprove Alfa audits the rendered DOM, then GitHub posts a pass or fail check and saves reports.">
             <div class="architecture-node"><b>Developer</b><span>pushes or opens a PR</span></div>
@@ -346,12 +346,12 @@
           </div>
 
           <div class="conversation" aria-live="polite">
-            <p id="nathan-answer"><strong>Nathan:</strong> “Where do I look when it fails?” <strong>Answer:</strong> Start in the CI log’s “where to look” list. It links the audited page and Alfa rule guidance; then download the workbook or open the attached JSON for targets and diagnostics.</p>
-            <div class="conversation-controls" role="group" aria-label="Questions Nathan can ask">
-              <button type="button" data-nathan-answer="trigger" aria-pressed="false">What starts it?</button>
-              <button type="button" data-nathan-answer="audit" aria-pressed="false">What gets checked?</button>
-              <button type="button" data-nathan-answer="failure" aria-pressed="true">Where do I look?</button>
-              <button type="button" data-nathan-answer="gate" aria-pressed="false">How does it block a merge?</button>
+            <p id="overview-answer">Start in the CI log’s “where to look” list. It links the audited page and Alfa rule guidance; then download the workbook or open the attached JSON for targets and diagnostics.</p>
+            <div class="conversation-controls" role="group" aria-label="Workflow questions">
+              <button type="button" data-overview-answer="trigger" aria-pressed="false">What starts it?</button>
+              <button type="button" data-overview-answer="audit" aria-pressed="false">What gets checked?</button>
+              <button type="button" data-overview-answer="failure" aria-pressed="true">Where do I look?</button>
+              <button type="button" data-overview-answer="gate" aria-pressed="false">How does it block a merge?</button>
             </div>
           </div>
         </section>
@@ -729,21 +729,21 @@ Logging.fromAudit(result, reportUrl).print(); <span class="cmt">// prints a link
       document.querySelectorAll("main .step[id]").forEach(function (s) { obs.observe(s); });
     })();
 
-    // Short conversational explainer
+    // Short interactive workflow explainer
     (function () {
-      var answer = document.getElementById("nathan-answer");
+      var answer = document.getElementById("overview-answer");
       if (!answer) return;
       var answers = {
-        trigger: "<strong>Nathan:</strong> “What starts it?” <strong>Answer:</strong> A push or pull request to <code class=\"inline\">main</code>, or a manual workflow run, starts the GitHub Actions workflow.",
-        audit: "<strong>Nathan:</strong> “What gets checked?” <strong>Answer:</strong> Playwright loads the actual page in Chromium. Alfa then evaluates the rendered DOM against the configured WCAG 2.1 A/AA, Best Practices, and ARIA rules.",
-        failure: "<strong>Nathan:</strong> “Where do I look when it fails?” <strong>Answer:</strong> Start in the CI log’s “where to look” list. It links the audited page and Alfa rule guidance; then download the workbook or open the attached JSON for targets and diagnostics.",
-        gate: "<strong>Nathan:</strong> “How does it block a merge?” <strong>Answer:</strong> Any failed Alfa rule makes the Playwright test fail. GitHub marks the check red; once the check is required in branch protection, the pull request cannot merge until it passes."
+        trigger: "A push or pull request to <code class=\"inline\">main</code>, or a manual workflow run, starts the GitHub Actions workflow.",
+        audit: "Playwright loads the actual page in Chromium. Alfa then evaluates the rendered DOM against the configured WCAG 2.1 A/AA, Best Practices, and ARIA rules.",
+        failure: "Start in the CI log’s “where to look” list. It links the audited page and Alfa rule guidance; then download the workbook or open the attached JSON for targets and diagnostics.",
+        gate: "Any failed Alfa rule makes the Playwright test fail. GitHub marks the check red; once the check is required in branch protection, the pull request cannot merge until it passes."
       };
-      document.querySelectorAll("[data-nathan-answer]").forEach(function (button) {
+      document.querySelectorAll("[data-overview-answer]").forEach(function (button) {
         button.addEventListener("click", function () {
-          var key = button.getAttribute("data-nathan-answer");
+          var key = button.getAttribute("data-overview-answer");
           answer.innerHTML = answers[key];
-          document.querySelectorAll("[data-nathan-answer]").forEach(function (item) {
+          document.querySelectorAll("[data-overview-answer]").forEach(function (item) {
             item.setAttribute("aria-pressed", String(item === button));
           });
         });
