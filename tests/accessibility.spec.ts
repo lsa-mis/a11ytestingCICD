@@ -35,8 +35,14 @@ const conformanceTarget: typeof Rules.wcag21aaFilter = (rule) =>
  * Any value other than the explicit string "advisory" remains enforcing.
  */
 const enforcement = process.env.A11Y_ENFORCEMENT === "advisory" ? "advisory" : "enforce";
+const auditedRoutes = [
+  "/",
+  // The intentionally broken showcase is useful for demonstrations, but it is
+  // not part of the normal merge gate. Opt in when presenting the report.
+  ...(process.env.A11Y_INCLUDE_VIOLATIONS === "true" ? ["/violations.html"] : []),
+];
 
-for (const route of ["/", "/violations.html"]) {
+for (const route of auditedRoutes) {
 test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
   // 1. Render the page exactly as a user would receive it.
   await page.goto(route);

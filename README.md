@@ -63,6 +63,10 @@ Playwright starts the dev server automatically and Alfa audits the rendered page
 No report files are created locally. The default **enforcing** mode exits non-zero
 when a rule fails—the same gate that runs in CI.
 
+To view the intentionally broken `violations.html` demonstration without blocking
+the run, use `npm run test:a11y:demo`. The demo page is excluded from the normal
+merge gate so it does not create a deliberate CI failure.
+
 ## Developer-focused reporting
 
 Recent reporting changes make a failure actionable directly from the terminal.
