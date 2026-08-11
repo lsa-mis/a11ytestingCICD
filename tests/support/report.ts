@@ -208,6 +208,14 @@ function findSourceReferences(sourceFile: string | undefined, patterns: RegExp[]
   }
 }
 
+/** Link a CI finding to the exact file and line in the commit that Actions audited. */
+function sourceLink(sourceFile: string | undefined, line: number): string | undefined {
+  const { GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_SHA } = process.env;
+  if (!sourceFile || !GITHUB_SERVER_URL || !GITHUB_REPOSITORY || !GITHUB_SHA) return undefined;
+  const path = sourceFile.split("/").map(encodeURIComponent).join("/");
+  return `${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/${path}#L${line}`;
+}
+
 function printReportIndex(
   meta: ReportMeta,
   verdict: "pass" | "fail",
@@ -239,7 +247,11 @@ function printReportIndex(
       const status = finding.outcome === "failed" ? "FAIL" : "REVIEW";
       lines.push(`  ${index + 1}. [${status}] ${title} (${finding.occurrences})`);
       if (references.length > 0) {
-        lines.push(`     At: ${references.map((reference) => `${meta.sourceFile}:${reference.line}  ${reference.code}`).join("\n         ")}`);
+        references.forEach((reference, referenceIndex) => {
+          lines.push(`${referenceIndex === 0 ? "     At: " : "         "}${meta.sourceFile}:${reference.line}  ${reference.code}`);
+          const link = sourceLink(meta.sourceFile, reference.line);
+          if (link) lines.push(`        Open: ${link}`);
+        });
       } else if (finding.target) {
         lines.push(`     Alfa target: ${finding.target}`);
       }
