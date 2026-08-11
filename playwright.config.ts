@@ -14,7 +14,9 @@ export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // Accessibility audits are deterministic for a rendered page. Retrying a
+  // failure duplicates the full remediation report without adding evidence.
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {

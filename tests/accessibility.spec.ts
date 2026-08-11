@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 import { Playwright } from "@siteimprove/alfa-playwright";
-import { Audit, Logging, Rules, SIP } from "@siteimprove/alfa-test-utils";
+import { Audit, Rules, SIP } from "@siteimprove/alfa-test-utils";
 import { getCommitInformation } from "@siteimprove/alfa-test-utils/git";
 
 import { writeAccessibilityReport } from "./support/report";
@@ -64,10 +64,7 @@ test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
         })
       : undefined;
 
-  // 5. Print a readable report to the job log (with a link if it was uploaded).
-  Logging.fromAudit(alfaResult, reportUrl).print();
-
-  // 6. Print a detailed terminal guide in every run. GitHub Actions additionally
+  // 5. Print one developer-focused terminal report in every run. GitHub Actions additionally
   //    writes the XLSX / JSON / Markdown / CSV bundle and uploads it as an artifact.
   const report = await writeAccessibilityReport(alfaResult, {
     route,
@@ -77,14 +74,8 @@ test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
     conformance: "WCAG 2.1 AA + Best Practices + ARIA",
     reportUrl,
   });
-  if (report.artifactsGenerated) {
-    console.log(`Accessibility CI report written to ${report.directory}/`);
-  } else {
-    console.log("Accessibility local run: terminal details only; no report files created.");
-  }
-  console.log(`Accessibility enforcement: ${enforcement.toUpperCase()}`);
 
-  // 7. Attach durable files only in CI. Local runs intentionally remain file-free.
+  // 6. Attach durable files only in CI. Local runs intentionally remain file-free.
   if (report.artifactsGenerated && report.directory && report.workbook) await Promise.all([
     testInfo.attach("Accessibility workbook", {
       path: report.workbook,
@@ -112,7 +103,7 @@ test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
     }),
   ]);
 
-  // 8. In enforcing mode, fail the build if any rule reported a failure.
+  // 7. In enforcing mode, fail the build if any rule reported a failure.
   //    Advisory mode is deliberately explicit and leaves the report verdict as
   //    FAIL so it can be triaged without hiding the regression.
   const failingRules = alfaResult.resultAggregates.filter(

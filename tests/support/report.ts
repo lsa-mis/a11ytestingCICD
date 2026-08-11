@@ -199,7 +199,7 @@ function findSourceReferences(sourceFile: string | undefined, patterns: RegExp[]
   try {
     const lines = readFileSync(sourceFile, "utf8").split(/\r?\n/);
     return lines.flatMap((code, index) =>
-      patterns.some((pattern) => pattern.test(code))
+      !code.trimStart().startsWith("<!--") && patterns.some((pattern) => pattern.test(code))
         ? [{ line: index + 1, code: code.trim() }]
         : [],
     );
@@ -213,78 +213,56 @@ function printReportIndex(
   verdict: "pass" | "fail",
   rules: RuleReportRow[],
   inlineFindings: InlineFinding[],
-  rendered: string,
   artifactsGenerated: boolean,
   directory?: string,
   runUrl?: string,
 ): void {
+  const totalOccurrences = inlineFindings.reduce((total, finding) => total + finding.occurrences, 0);
+  const ruleTitles = new Map(rules.map((rule) => [rule.uri, rule.title]));
   const lines = [
     "",
-    "Accessibility report — where to look",
-    `Verdict: ${verdict.toUpperCase()}`,
-    `Page: ${meta.url}`,
-    `Source file: ${meta.sourceFile ?? meta.route}`,
-    `Standard: ${meta.conformance}`,
-    `  Open Accessibility CI/CD Architecture in Figma: ${ARCHITECTURE_DIAGRAM_URL}`,
-    "Merge decision options (the report always keeps the failure):",
-    "  Default: ENFORCE — the required check blocks the merge until the issue is fixed.",
-    "  Manual audit: Actions → CI → Run workflow → choose accessibility_enforcement: advisory.",
-    "  One PR: use the configured maintainer-only ruleset bypass and record the reason.",
-    `  Setup and guardrails: ${OVERRIDE_GUIDE_PATH}`,
+    verdict === "pass" ? "✓ Accessibility audit passed" : "✗ Accessibility audit failed",
+    `  Page: ${meta.url}`,
+    `  Source: ${meta.sourceFile ?? meta.route}`,
+    `  Scope: ${meta.conformance}`,
+    verdict === "pass"
+      ? "  Result: No failed or manual-review rules."
+      : `  Result: ${rules.length} rule type(s), ${totalOccurrences} occurrence(s) need attention.`,
   ];
-  if (artifactsGenerated && directory) {
-    lines.splice(
-      5,
-      0,
-      "CI artifact files:",
-      `  Workbook: ${join(directory, "accessibility-report.xlsx")}`,
-      `  Evidence JSON: ${join(directory, "report.json")}`,
-      `  Human summary: ${join(directory, "summary.md")}`,
-      `  Issue rows: ${join(directory, "issues.csv")}`,
-      `  Rule rows: ${join(directory, "rules.csv")}`,
-    );
-  } else {
-    lines.splice(5, 0, "Local mode: no report files were created. CI creates the downloadable XLSX bundle.");
-  }
-  if (runUrl) lines.push(`Workflow run and downloadable artifacts: ${runUrl}`);
 
-  if (rules.length === 0) {
-    lines.push("Open issues: none");
-  } else {
-    lines.push("Open issues and review leads:");
-    rules.forEach((rule, index) => {
-      const result = rule.failed > 0
-        ? `FAILED — ${rule.failed} occurrence(s)`
-        : `NEEDS REVIEW — ${rule.cantTell} occurrence(s)`;
-      lines.push(`  ${index + 1}. [${result}] ${rule.title}`);
-      lines.push(`     Page: ${meta.url}`);
-      lines.push(`     Rule guidance: ${rule.uri}`);
-      lines.push(
-        artifactsGenerated && directory
-          ? `     Exact targets/diagnostics: ${join(directory, "report.json")} (search for ${rule.rule})`
-          : "     Exact targets/diagnostics: see the detailed Alfa trail below.",
-      );
-    });
-    lines.push("Developer fixes — source, reason, and a safe replacement:");
+  if (inlineFindings.length > 0) {
+    lines.push("", "Fixes:");
     inlineFindings.forEach((finding, index) => {
       const advice = remediationAdvice(finding.rule);
       const references = findSourceReferences(meta.sourceFile, advice?.patterns ?? []);
-      lines.push(`  ${index + 1}. [${finding.outcome.toUpperCase()}] ${meta.sourceFile ?? meta.route} (${finding.occurrences} occurrence(s))`);
-      lines.push(`     Rule: ${finding.rule}`);
-      lines.push(`     Why: ${finding.diagnostic}`);
+      const title = ruleTitles.get(finding.rule) ?? finding.rule.split("/").pop() ?? "Accessibility issue";
+      const status = finding.outcome === "failed" ? "FAIL" : "REVIEW";
+      lines.push(`  ${index + 1}. [${status}] ${title} (${finding.occurrences})`);
       if (references.length > 0) {
-        lines.push(`     Code: ${references.map((reference) => `${meta.sourceFile}:${reference.line}  ${reference.code}`).join("\n           ")}`);
+        lines.push(`     At: ${references.map((reference) => `${meta.sourceFile}:${reference.line}  ${reference.code}`).join("\n         ")}`);
       } else if (finding.target) {
         lines.push(`     Alfa target: ${finding.target}`);
       }
-      lines.push(`     Change to: ${advice?.replacement ?? "Use the linked rule guidance to correct this element, then rerun the audit."}`);
+      lines.push(`     Why: ${finding.diagnostic}`);
+      lines.push(`     Fix: ${advice?.replacement ?? "Follow the rule guidance, then rerun the audit."}`);
+      lines.push(`     Help: ${finding.rule}`);
     });
-    if (!artifactsGenerated) {
-      lines.push("Detailed Alfa trail (targets and diagnostics):");
-      lines.push(rendered);
-    }
   }
 
+  lines.push("");
+  if (artifactsGenerated && directory) {
+    lines.push("CI artifacts (download from this workflow):");
+    lines.push(`  Workbook: ${join(directory, "accessibility-report.xlsx")}`);
+    lines.push(`  Evidence: ${join(directory, "report.json")}`);
+    lines.push(`  Summary: ${join(directory, "summary.md")}`);
+  } else {
+    lines.push("Local run: no files created. CI uploads the XLSX and evidence bundle.");
+  }
+  if (runUrl) lines.push(`  Workflow: ${runUrl}`);
+  lines.push(`  Architecture: ${ARCHITECTURE_DIAGRAM_URL}`);
+  if (verdict === "fail") {
+    lines.push(`  Merge: enforcing by default. For an authorized exception, see ${OVERRIDE_GUIDE_PATH}.`);
+  }
   console.log(lines.join("\n"));
 }
 
@@ -781,7 +759,7 @@ export async function writeAccessibilityReport(audit: Audit, meta: ReportMeta): 
   // an artifact for the whole team rather than recreated on every local run.
   const artifactsGenerated = process.env.GITHUB_ACTIONS === "true";
   if (!artifactsGenerated) {
-    printReportIndex(meta, verdict, rules, inlineFindings, rendered, false, undefined, runUrl);
+    printReportIndex(meta, verdict, rules, inlineFindings, false, undefined, runUrl);
     return {
       verdict,
       artifactsGenerated: false,
@@ -931,7 +909,7 @@ export async function writeAccessibilityReport(audit: Audit, meta: ReportMeta): 
     siteimproveUrl,
   );
 
-  printReportIndex(meta, verdict, rules, inlineFindings, rendered, true, directory, runUrl);
+  printReportIndex(meta, verdict, rules, inlineFindings, true, directory, runUrl);
 
   return {
     verdict,
