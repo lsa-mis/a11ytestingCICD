@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import ExcelJS, { type Cell, type Worksheet } from "exceljs";
@@ -21,6 +21,8 @@ import { Logging, type Audit } from "@siteimprove/alfa-test-utils";
 export interface ReportMeta {
   /** Route audited, e.g. "/" or "/pricing". */
   route: string;
+  /** Source file that serves the audited route, when the route is file-backed. */
+  sourceFile?: string;
   /** Fully-resolved URL the browser actually loaded. */
   url: string;
   /** Document title at audit time. */
@@ -63,6 +65,24 @@ interface RuleReportRow {
   cantTell: number;
 }
 
+interface InlineFinding {
+  outcome: "failed" | "cantTell";
+  rule: string;
+  occurrences: number;
+  target?: string;
+  diagnostic: string;
+}
+
+interface SourceReference {
+  line: number;
+  code: string;
+}
+
+interface RemediationAdvice {
+  patterns: RegExp[];
+  replacement: string;
+}
+
 function slug(route: string): string {
   const s = route.replace(/^\/+|\/+$/g, "").replace(/[^a-zA-Z0-9._-]+/g, "-");
   return s.length > 0 ? s.toLowerCase() : "home";
@@ -101,10 +121,98 @@ function reportUrlToString(value: ReportMeta["reportUrl"]): string | undefined {
   return typeof maybe.getOr === "function" ? maybe.getOr(undefined) : undefined;
 }
 
+/** Pull the actionable parts of Alfa's serialized outcomes into CI-log-sized rows. */
+function extractInlineFindings(outcomes: unknown): InlineFinding[] {
+  if (!Array.isArray(outcomes)) return [];
+
+  const findings = outcomes.flatMap((outcome) => {
+    if (typeof outcome !== "object" || outcome === null) return [];
+    const value = outcome as {
+      outcome?: string;
+      rule?: { uri?: string };
+      target?: { type?: string; internalId?: string; serializationId?: string };
+      expectations?: Array<[string, { error?: { message?: string }; value?: { message?: string } }]>
+    };
+    if (value.outcome !== "failed" && value.outcome !== "cantTell") return [];
+
+    const messages = (value.expectations ?? [])
+      .map(([, expectation]) => expectation.error?.message ?? expectation.value?.message)
+      .filter((message): message is string => Boolean(message));
+    const targetId = value.target?.serializationId ?? value.target?.internalId;
+
+    return [{
+      outcome: value.outcome as InlineFinding["outcome"],
+      rule: value.rule?.uri ?? "Unknown Alfa rule",
+      occurrences: 1,
+      target: targetId ? `${value.target?.type ?? "element"} (${targetId})` : undefined,
+      diagnostic: messages.join("; ") || "No diagnostic supplied by Alfa",
+    }];
+  });
+
+  const grouped = new Map<string, InlineFinding>();
+  for (const finding of findings) {
+    const key = `${finding.outcome}:${finding.rule}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.occurrences += 1;
+      if (!existing.diagnostic.includes(finding.diagnostic)) {
+        existing.diagnostic += `; ${finding.diagnostic}`;
+      }
+    } else {
+      grouped.set(key, finding);
+    }
+  }
+  return [...grouped.values()];
+}
+
+/**
+ * Maps commonly reported Alfa rules to source patterns and a safe starting fix.
+ * If no pattern matches, the CI log still reports the rule and Alfa target ID.
+ */
+function remediationAdvice(rule: string): RemediationAdvice | undefined {
+  const ruleId = rule.split("/").pop();
+  const advice: Record<string, RemediationAdvice> = {
+    "sia-r1": { patterns: [/<head\b/i], replacement: "<title>Descriptive page title</title>" },
+    "sia-r2": { patterns: [/<img\b(?![^>]*\balt\s*=)[^>]*>/i], replacement: '<img src="image.svg" alt="Describe the image purpose">' },
+    "sia-r4": { patterns: [/<html\b/i], replacement: '<html lang="en">' },
+    "sia-r8": { patterns: [/<(?:input|select|textarea)\b/i], replacement: '<label for="email">Email address</label>\n<input id="email" name="email" type="email">' },
+    "sia-r9": { patterns: [/http-equiv\s*=\s*["']refresh/i], replacement: "Remove the automatic refresh, or provide a user-controlled refresh action." },
+    "sia-r11": { patterns: [/<a\b[^>]*><\/a>/i, /<a\b[^>]*><img\b/i], replacement: '<a href="/destination">Describe the destination</a>' },
+    "sia-r12": { patterns: [/<button\b[^>]*><\/button>/i, /<button\b[^>]*><img\b/i], replacement: '<button type="button" aria-label="Close">×</button>' },
+    "sia-r17": { patterns: [/aria-hidden\s*=\s*["']true/i], replacement: "Remove aria-hidden from the focusable control, or remove the control from the keyboard order." },
+    "sia-r19": { patterns: [/aria-checked\s*=\s*["'][^"']+["']/i], replacement: '<div role="checkbox" aria-checked="false" tabindex="0">Option</div>' },
+    "sia-r21": { patterns: [/role\s*=\s*["']totally-not-a-role["']/i], replacement: 'Use a valid role, for example: <div role="status">Saved</div>' },
+    "sia-r47": { patterns: [/name\s*=\s*["']viewport/i], replacement: '<meta name="viewport" content="width=device-width, initial-scale=1.0">' },
+    "sia-r53": { patterns: [/<h4\b/i], replacement: "Use the next logical heading level; for example, replace an h4 following h1 with an h2." },
+    "sia-r57": { patterns: [/<body\b/i], replacement: '<main id="main">\n  <!-- page content -->\n</main>' },
+    "sia-r64": { patterns: [/<h[1-6][^>]*>\s*<\/h[1-6]>/i], replacement: "Add meaningful heading text, or remove the empty heading." },
+    "sia-r69": { patterns: [/\.low-contrast\b/i, /\.low-contrast-link\b/i], replacement: ".content { color: #595959; background: #ffffff; }" },
+    "sia-r72": { patterns: [/text-transform\s*:\s*uppercase/i], replacement: "Remove text-transform: uppercase and write the intended casing in the content." },
+    "sia-r87": { patterns: [/<body\b/i], replacement: '<a class="skip-link" href="#main">Skip to main content</a>\n<main id="main">…</main>' },
+    "sia-r110": { patterns: [/role\s*=\s*["']totally-not-a-role["']/i], replacement: 'Use a valid role, for example: <div role="status">Saved</div>' },
+  };
+  return ruleId ? advice[ruleId] : undefined;
+}
+
+function findSourceReferences(sourceFile: string | undefined, patterns: RegExp[]): SourceReference[] {
+  if (!sourceFile || patterns.length === 0) return [];
+  try {
+    const lines = readFileSync(sourceFile, "utf8").split(/\r?\n/);
+    return lines.flatMap((code, index) =>
+      patterns.some((pattern) => pattern.test(code))
+        ? [{ line: index + 1, code: code.trim() }]
+        : [],
+    );
+  } catch {
+    return [];
+  }
+}
+
 function printReportIndex(
   meta: ReportMeta,
   verdict: "pass" | "fail",
   rules: RuleReportRow[],
+  inlineFindings: InlineFinding[],
   rendered: string,
   artifactsGenerated: boolean,
   directory?: string,
@@ -115,6 +223,7 @@ function printReportIndex(
     "Accessibility report — where to look",
     `Verdict: ${verdict.toUpperCase()}`,
     `Page: ${meta.url}`,
+    `Source file: ${meta.sourceFile ?? meta.route}`,
     `Standard: ${meta.conformance}`,
     `  Open Accessibility CI/CD Architecture in Figma: ${ARCHITECTURE_DIAGRAM_URL}`,
     "Merge decision options (the report always keeps the failure):",
@@ -155,6 +264,20 @@ function printReportIndex(
           ? `     Exact targets/diagnostics: ${join(directory, "report.json")} (search for ${rule.rule})`
           : "     Exact targets/diagnostics: see the detailed Alfa trail below.",
       );
+    });
+    lines.push("Developer fixes — source, reason, and a safe replacement:");
+    inlineFindings.forEach((finding, index) => {
+      const advice = remediationAdvice(finding.rule);
+      const references = findSourceReferences(meta.sourceFile, advice?.patterns ?? []);
+      lines.push(`  ${index + 1}. [${finding.outcome.toUpperCase()}] ${meta.sourceFile ?? meta.route} (${finding.occurrences} occurrence(s))`);
+      lines.push(`     Rule: ${finding.rule}`);
+      lines.push(`     Why: ${finding.diagnostic}`);
+      if (references.length > 0) {
+        lines.push(`     Code: ${references.map((reference) => `${meta.sourceFile}:${reference.line}  ${reference.code}`).join("\n           ")}`);
+      } else if (finding.target) {
+        lines.push(`     Alfa target: ${finding.target}`);
+      }
+      lines.push(`     Change to: ${advice?.replacement ?? "Use the linked rule guidance to correct this element, then rerun the audit."}`);
     });
     if (!artifactsGenerated) {
       lines.push("Detailed Alfa trail (targets and diagnostics):");
@@ -621,6 +744,7 @@ export async function writeAccessibilityReport(audit: Audit, meta: ReportMeta): 
   allRules.sort((a, b) => a.rule.localeCompare(b.rule, undefined, { numeric: true }));
 
   const rendered = renderLog(Logging.fromAudit(audit, meta.reportUrl)).trimEnd();
+  const inlineFindings = extractInlineFindings(json.outcomes);
   const siteimproveUrl = reportUrlToString(meta.reportUrl);
   const issues = extractIssues(rendered);
   const failedRulesByUri = rules.filter((rule) => rule.failed > 0).sort((a, b) => a.uri.localeCompare(b.uri));
@@ -657,7 +781,7 @@ export async function writeAccessibilityReport(audit: Audit, meta: ReportMeta): 
   // an artifact for the whole team rather than recreated on every local run.
   const artifactsGenerated = process.env.GITHUB_ACTIONS === "true";
   if (!artifactsGenerated) {
-    printReportIndex(meta, verdict, rules, rendered, false, undefined, runUrl);
+    printReportIndex(meta, verdict, rules, inlineFindings, rendered, false, undefined, runUrl);
     return {
       verdict,
       artifactsGenerated: false,
@@ -807,7 +931,7 @@ export async function writeAccessibilityReport(audit: Audit, meta: ReportMeta): 
     siteimproveUrl,
   );
 
-  printReportIndex(meta, verdict, rules, rendered, true, directory, runUrl);
+  printReportIndex(meta, verdict, rules, inlineFindings, rendered, true, directory, runUrl);
 
   return {
     verdict,
