@@ -706,21 +706,21 @@ Logging.fromAudit(result, reportUrl).print(); <span class="cmt">// prints a link
       document.querySelectorAll("main .step[id]").forEach(function (s) { obs.observe(s); });
     })();
 
-    // Short conversational explainer
+    // Short interactive workflow explainer
     (function () {
-      var answer = document.getElementById("nathan-answer");
+      var answer = document.getElementById("overview-answer");
       if (!answer) return;
       var answers = {
-        trigger: "<strong>Nathan:</strong> “What starts it?” <strong>Answer:</strong> A push or pull request to <code class=\"inline\">main</code>, or a manual workflow run, starts the GitHub Actions workflow.",
-        audit: "<strong>Nathan:</strong> “What gets checked?” <strong>Answer:</strong> Playwright loads the actual page in Chromium. Alfa then evaluates the rendered DOM against the configured WCAG 2.1 A/AA, Best Practices, and ARIA rules.",
-        failure: "<strong>Nathan:</strong> “Where do I look when it fails?” <strong>Answer:</strong> Start in the CI log’s “where to look” list. It links the audited page and Alfa rule guidance; then download the workbook or open the attached JSON for targets and diagnostics.",
-        gate: "<strong>Nathan:</strong> “How does it block a merge?” <strong>Answer:</strong> Any failed Alfa rule makes the Playwright test fail. GitHub marks the check red; once the check is required in branch protection, the pull request cannot merge until it passes."
+        trigger: "A push or pull request to <code class=\"inline\">main</code>, or a manual workflow run, starts the GitHub Actions workflow.",
+        audit: "Playwright loads the actual page in Chromium. Alfa then evaluates the rendered DOM against the configured WCAG 2.1 A/AA, Best Practices, and ARIA rules.",
+        failure: "Start in the CI log’s “where to look” list. It links the audited page and Alfa rule guidance; then download the workbook or open the attached JSON for targets and diagnostics.",
+        gate: "Any failed Alfa rule makes the Playwright test fail. GitHub marks the check red; once the check is required in branch protection, the pull request cannot merge until it passes."
       };
-      document.querySelectorAll("[data-nathan-answer]").forEach(function (button) {
+      document.querySelectorAll("[data-overview-answer]").forEach(function (button) {
         button.addEventListener("click", function () {
-          var key = button.getAttribute("data-nathan-answer");
+          var key = button.getAttribute("data-overview-answer");
           answer.innerHTML = answers[key];
-          document.querySelectorAll("[data-nathan-answer]").forEach(function (item) {
+          document.querySelectorAll("[data-overview-answer]").forEach(function (item) {
             item.setAttribute("aria-pressed", String(item === button));
           });
         });

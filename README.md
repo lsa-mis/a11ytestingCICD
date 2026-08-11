@@ -13,7 +13,6 @@ accessibility violations**.
 > ### 🚀 Want to do this in your own project?
 >
 > - **[Step-by-step guide site](https://lsa-mis.github.io/a11ytestingCICD/a11ycicdguideforgithub/)** — the hosted, visual walkthrough (GitHub Pages)
-> - **[How it works — for Nathan](docs/NATHAN-OVERVIEW.md)** — short, conversational architecture overview
 > - **[Copy-paste checklist](docs/CHECKLIST.md)** — ~15 minutes, top to bottom
 > - **[Full CI accessibility guide](docs/CI-ACCESSIBILITY-GUIDE.md)** — every piece explained, for React, Next.js, Vue, Angular, Svelte, Astro, static sites, or a deployed preview URL
 
@@ -114,7 +113,6 @@ expect(failingRules.size).toBe(0);                          // fail on violation
 | Doc                                                                                                   | Use it to…                                          |
 | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | **[Step-by-step guide site](https://lsa-mis.github.io/a11ytestingCICD/a11ycicdguideforgithub/)**      | Follow a hosted, visual walkthrough                 |
-| **[docs/NATHAN-OVERVIEW.md](docs/NATHAN-OVERVIEW.md)**                                                   | Get the short architecture explanation              |
 | **[docs/CHECKLIST.md](docs/CHECKLIST.md)**                                                            | Copy-paste the setup into your project (~15 min)    |
 | **[docs/CI-ACCESSIBILITY-GUIDE.md](docs/CI-ACCESSIBILITY-GUIDE.md)**                                  | Understand every piece + adapt to any framework     |
 | **[docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)**                                                    | See how the gate is configured in this repo         |

@@ -71,6 +71,7 @@ test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
   //    writes the XLSX / JSON / Markdown / CSV bundle and uploads it as an artifact.
   const report = await writeAccessibilityReport(alfaResult, {
     route,
+    sourceFile: route === "/" ? "index.html" : route.slice(1),
     url: page.url(),
     title: await page.title(),
     conformance: "WCAG 2.1 AA + Best Practices + ARIA",
