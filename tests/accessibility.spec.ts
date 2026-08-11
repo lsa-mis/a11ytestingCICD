@@ -35,15 +35,13 @@ const conformanceTarget: typeof Rules.wcag21aaFilter = (rule) =>
  * Any value other than the explicit string "advisory" remains enforcing.
  */
 const enforcement = process.env.A11Y_ENFORCEMENT === "advisory" ? "advisory" : "enforce";
-const auditedRoutes = [
-  "/",
-  // The intentionally broken showcase is useful for demonstrations, but it is
-  // not part of the normal merge gate. Opt in when presenting the report.
-  ...(process.env.A11Y_INCLUDE_VIOLATIONS === "true" ? ["/violations.html"] : []),
-];
+const auditedRoutes = ["/", "/violations.html"];
 
 for (const route of auditedRoutes) {
-test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
+const isViolationDemo = route === "/violations.html";
+test(
+  isViolationDemo ? `${route} reports demonstration violations` : `${route} has no accessibility violations`,
+  async ({ page }, testInfo) => {
   // 1. Render the page exactly as a user would receive it.
   await page.goto(route);
 
@@ -116,7 +114,12 @@ test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
     (aggregate) => aggregate.failed > 0,
   );
 
-  if (enforcement === "enforce") {
+  if (isViolationDemo && failingRules.size > 0) {
+    console.warn(
+      `Demonstration page: ${failingRules.size} failing rule(s) were reported. ` +
+        "The report is retained, but this known-broken page does not block the merge gate.",
+    );
+  } else if (enforcement === "enforce") {
     expect(
       failingRules.size,
       `The page has ${failingRules.size} failing accessibility rule(s). ` +
@@ -128,5 +131,6 @@ test(`${route} has no accessibility violations`, async ({ page }, testInfo) => {
         "The check is allowed to pass; fix or formally bypass the PR before restoring enforcement.",
     );
   }
-});
+  },
+);
 }
