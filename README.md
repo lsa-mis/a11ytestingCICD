@@ -34,7 +34,8 @@ accessibility violations**.
 │   ├── main.ts                         # Progressive-enhancement JS
 │   └── style.css                       # High-contrast, keyboard-friendly styles
 ├── tests/
-│   └── accessibility.spec.ts           # The Alfa accessibility gate
+│   ├── accessibility.spec.ts           # The Alfa accessibility gate
+│   └── support/report.ts               # Terminal guidance + CI report artifacts
 ├── playwright.config.ts                # Boots the dev server + runs the audit
 ├── .github/workflows/accessibility.yml # The CI/CD pipeline
 ├── a11ycicdguideforgithub/             # The hosted step-by-step guide site (GitHub Pages)
@@ -58,13 +59,44 @@ npm run dev                       # http://localhost:5173
 npm run test:a11y
 ```
 
-Playwright starts the dev server automatically, Alfa audits the rendered page,
-and a developer-facing report index is printed to the console with page links,
-rule guidance, occurrence counts, and the detailed Alfa trail (targets and
-diagnostics). No report files are created locally. The matching nine-sheet Excel
-workbook and structured evidence files are generated only in GitHub Actions and
-uploaded as CI artifacts. The command exits non-zero if any rule fails — the same
-gate that runs in CI.
+Playwright starts the dev server automatically and Alfa audits the rendered page.
+No report files are created locally. The default **enforcing** mode exits non-zero
+when a rule fails—the same gate that runs in CI.
+
+## Developer-focused reporting
+
+Recent reporting changes make a failure actionable directly from the terminal.
+For each failed rule, `npm run test:a11y` prints the affected source file and line
+when it can be matched, the reason Alfa reported it, and a safe starting fix:
+
+```text
+[FAILED] violations.html (2 occurrence(s))
+Why: The image does not have an accessible name
+Code: violations.html:41  <img src="/vite.svg" width="48" height="48" />
+Change to: <img src="image.svg" alt="Describe the image purpose">
+```
+
+The report also includes the Alfa rule link, occurrence count, and detailed Alfa
+targets/diagnostics. Source-line matching is available for the file-backed markup
+patterns covered by the report; dynamically generated DOM still includes Alfa's
+target evidence and rule guidance rather than a guessed source location.
+
+### Local runs versus CI artifacts
+
+Local runs stay file-free and print the developer guidance above. In GitHub
+Actions, the same audit additionally writes and uploads an `accessibility-reports`
+artifact for each audited route at `reports/<route>/`:
+
+| File | Purpose |
+| --- | --- |
+| `accessibility-report.xlsx` | Nine-sheet remediation and tracking workbook |
+| `report.json` | Complete machine-readable audit evidence and Alfa outcomes |
+| `summary.md` | Human-readable scan summary |
+| `issues.csv` | Issue-level export |
+| `rules.csv` | Rule-level export |
+
+Artifacts are uploaded even when the audit fails, so the evidence remains
+available from the failed workflow run.
 
 Other scripts:
 
