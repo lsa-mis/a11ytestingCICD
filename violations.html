@@ -133,8 +133,21 @@
       <p class="all-caps">This sentence is forced to capitals by CSS, which screen readers may spell out letter by letter.</p>
     </div>
 
+    <div class="case">
+      <p class="tag">14 · keyboard</p>
+      <h2>Keyboard trap</h2>
+      <!-- MANUAL TESTING VIOLATION — pressing Tab or Shift+Tab never moves focus away. -->
+      <button id="keyboard-trap" type="button">Focus me, then press Tab</button>
+      <p>This control traps keyboard focus. It is intentionally broken for the demo.</p>
+    </div>
+
     <!-- VIOLATION 15 — a second <main> landmark on the same page -->
     <main><p>First main landmark.</p></main>
     <main><p>Second main landmark — landmarks must be unique.</p></main>
+    <script>
+      document.querySelector("#keyboard-trap").addEventListener("keydown", (event) => {
+        if (event.key === "Tab") event.preventDefault();
+      });
+    </script>
   </body>
 </html>
