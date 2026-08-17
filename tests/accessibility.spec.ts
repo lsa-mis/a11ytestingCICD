@@ -71,20 +71,32 @@ test(
     );
   }
 
-  const reportUrl =
-    uploadEnabled && SI_USER_EMAIL && SI_API_KEY && SI_SITE_ID
-      ? await SIP.upload(alfaResult, {
-          userName: SI_USER_EMAIL,
-          apiKey: SI_API_KEY,
-          siteID: Number(SI_SITE_ID),
-          commitInformation: await getCommitInformation(),
-        })
-      : undefined;
-  console.log(
-    uploadEnabled
-      ? `Siteimprove upload completed for ${route}.`
-      : "Siteimprove upload disabled for this run.",
-  );
+  const siteID = Number(SI_SITE_ID);
+  if (uploadEnabled && (!Number.isInteger(siteID) || siteID <= 0)) {
+    throw new Error("SI_SITE_ID must be a positive integer.");
+  }
+
+  const reportUrl = uploadEnabled && SI_USER_EMAIL && SI_API_KEY
+    ? await SIP.upload(alfaResult, {
+        userName: SI_USER_EMAIL,
+        apiKey: SI_API_KEY,
+        siteID,
+        commitInformation: await getCommitInformation(),
+        pageTitle: await page.title(),
+        pageURL: page.url(),
+        testName: `GitHub accessibility audit: ${route}`,
+      })
+    : undefined;
+
+  if (reportUrl === undefined) {
+    console.log("Siteimprove upload disabled for this run.");
+  } else if (reportUrl.isErr()) {
+    throw new Error(
+      `Siteimprove upload failed for ${route}: ${reportUrl.getErrUnsafe().join("; ")}`,
+    );
+  } else {
+    console.log(`Siteimprove upload completed for ${route}: ${reportUrl.getUnsafe()}`);
+  }
 
   // 5. Print one developer-focused terminal report in every run. GitHub Actions additionally
   //    writes the XLSX / JSON / Markdown / CSV bundle and uploads it as an artifact.
