@@ -55,11 +55,24 @@ test(
   });
 
   // 4. Optionally publish results to the Siteimprove Intelligence Platform.
-  //    Only runs when credentials are provided (e.g. via GitHub Actions secrets),
-  //    so the gate works fully offline by default.
+  //    GitHub Actions enables this explicitly and fails clearly if a required
+  //    secret is missing. Local runs remain offline by default.
+  const uploadEnabled = process.env.SI_UPLOAD_ENABLED === "true";
   const { SI_USER_EMAIL, SI_API_KEY, SI_SITE_ID } = process.env;
+  const missingUploadSecrets = [
+    ["SI_USER_EMAIL", SI_USER_EMAIL],
+    ["SI_API_KEY", SI_API_KEY],
+    ["SI_SITE_ID", SI_SITE_ID],
+  ].filter(([, value]) => !value).map(([name]) => name);
+
+  if (uploadEnabled && missingUploadSecrets.length > 0) {
+    throw new Error(
+      `Siteimprove upload is enabled, but these GitHub Actions secrets are missing: ${missingUploadSecrets.join(", ")}`,
+    );
+  }
+
   const reportUrl =
-    SI_USER_EMAIL && SI_API_KEY && SI_SITE_ID
+    uploadEnabled && SI_USER_EMAIL && SI_API_KEY && SI_SITE_ID
       ? await SIP.upload(alfaResult, {
           userName: SI_USER_EMAIL,
           apiKey: SI_API_KEY,
@@ -67,6 +80,11 @@ test(
           commitInformation: await getCommitInformation(),
         })
       : undefined;
+  console.log(
+    uploadEnabled
+      ? `Siteimprove upload completed for ${route}.`
+      : "Siteimprove upload disabled for this run.",
+  );
 
   // 5. Print one developer-focused terminal report in every run. GitHub Actions additionally
   //    writes the XLSX / JSON / Markdown / CSV bundle and uploads it as an artifact.

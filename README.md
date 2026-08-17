@@ -154,8 +154,8 @@ expect(failingRules.size).toBe(0);                          // fail on violation
 
 ## Optional: publish results to Siteimprove
 
-The audit runs fully offline by default. To also upload results to the
-**Siteimprove Intelligence Platform**, add these repository secrets
+Local audits run fully offline by default. GitHub Actions is configured to upload
+results to the **Siteimprove Intelligence Platform** using these repository secrets
 (_Settings → Secrets and variables → Actions_):
 
 | Secret          | Value                          |
@@ -164,8 +164,11 @@ The audit runs fully offline by default. To also upload results to the
 | `SI_API_KEY`    | Your Siteimprove API key       |
 | `SI_SITE_ID`    | The target site ID             |
 
-When all three are present, the test uploads the audit and prints a link to the
-online report. When they're absent, the local pass/fail gate still runs.
+GitHub Actions sets `SI_UPLOAD_ENABLED=true`. When all three secrets are present,
+each audited route is uploaded and the job prints a completion message. When the
+upload is enabled but a required secret is missing, the job fails with the exact
+missing secret names. Local runs stay offline unless you explicitly set the flag
+and credentials.
 
 ## Learn more
 
