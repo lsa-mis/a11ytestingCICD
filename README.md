@@ -91,7 +91,7 @@ artifact for each audited route at `reports/<route>/`:
 
 | File | Purpose |
 | --- | --- |
-| `accessibility-report.xlsx` | Nine-sheet remediation and tracking workbook |
+| `accessibility-report.xlsx` | Nine-sheet remediation workbook; **Issues Overview** mirrors the terminal with Title, exact Location, Why, and Fix |
 | `report.json` | Complete machine-readable audit evidence and Alfa outcomes |
 | `summary.md` | Human-readable scan summary |
 | `issues.csv` | Issue-level export |

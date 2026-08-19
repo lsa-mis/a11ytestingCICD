@@ -117,7 +117,9 @@ runs two jobs on push/PR to `main`:
 2. **Accessibility audit (Alfa)** — installs Chromium, runs the scoped audit,
    uploads the Playwright HTML report and the generated accessibility report
    bundle (XLSX, Markdown, JSON, and CSV) as artifacts. The bundle is generated
-   only in CI; local runs print the actionable Alfa details in the terminal.
+   only in CI; its workbook mirrors the terminal's developer detail with issue
+   title, exact source location, reason, and suggested fix. Local runs print the
+   same actionable Alfa details directly in the terminal.
 
 Mark **Accessibility audit (Alfa)** as a required status check (Settings →
 Branches) to block merges on violations.

@@ -7,7 +7,7 @@ Each audited route gets its own subfolder (`/` → `reports/home/`):
 
 | File | Audience | Contents |
 | --- | --- | --- |
-| `accessibility-report.xlsx` | Remediation teams | Nine-sheet workbook matching the house format: summary, issue/worklist views, page references, coverage, manual test tracking, and evidence. |
+| `accessibility-report.xlsx` | Remediation teams | Nine-sheet workbook matching the house format. **Issues Overview** gives one developer-ready row per matched source location with Title, exact file/line and code, Why, Fix, status, owner, and clickable source/rule links. |
 | `summary.md` | People | Verdict, metadata, issue table, rule table, what still needs a human. Paste into a PR or ticket. |
 | `report.json` | Machines / investigators | Full structured result — verdict, summary counts, rule-level counts, CI context, and Alfa's exact serialized outcomes (targets and diagnostics). |
 | `issues.csv` | Spreadsheets | One row per issue: route, page, issue, occurrences. |

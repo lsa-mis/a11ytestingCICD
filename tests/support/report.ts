@@ -73,6 +73,17 @@ interface InlineFinding {
   diagnostic: string;
 }
 
+interface DeveloperIssueRow {
+  title: string;
+  location: string;
+  locationUrl?: string;
+  why: string;
+  fix: string;
+  result: "Failed" | "Needs review";
+  occurrences: number;
+  rule: string;
+}
+
 interface SourceReference {
   line: number;
   code: string;
@@ -214,6 +225,44 @@ function sourceLink(sourceFile: string | undefined, line: number): string | unde
   if (!sourceFile || !GITHUB_SERVER_URL || !GITHUB_REPOSITORY || !GITHUB_SHA) return undefined;
   const path = sourceFile.split("/").map(encodeURIComponent).join("/");
   return `${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/${path}#L${line}`;
+}
+
+/** Build the same title/location/why/fix evidence shown in the terminal for XLSX rows. */
+function buildDeveloperIssueRows(
+  meta: ReportMeta,
+  rules: RuleReportRow[],
+  inlineFindings: InlineFinding[],
+): DeveloperIssueRow[] {
+  const ruleTitles = new Map(rules.map((rule) => [rule.uri, rule.title]));
+
+  return inlineFindings.flatMap((finding) => {
+    const advice = remediationAdvice(finding.rule);
+    const references = findSourceReferences(meta.sourceFile, advice?.patterns ?? []);
+    const title = ruleTitles.get(finding.rule) ?? finding.rule.split("/").pop() ?? "Accessibility issue";
+    const shared = {
+      title,
+      why: finding.diagnostic,
+      fix: advice?.replacement ?? "Follow the rule guidance, then rerun the audit.",
+      result: finding.outcome === "failed" ? "Failed" as const : "Needs review" as const,
+      occurrences: finding.occurrences,
+      rule: finding.rule,
+    };
+
+    if (references.length > 0) {
+      return references.map((reference) => ({
+        ...shared,
+        location: `${meta.sourceFile}:${reference.line}\n${reference.code}`,
+        locationUrl: sourceLink(meta.sourceFile, reference.line),
+      }));
+    }
+
+    return [{
+      ...shared,
+      location: finding.target
+        ? `Alfa target: ${finding.target}`
+        : `Audited page: ${meta.sourceFile ?? meta.route}`,
+    }];
+  });
 }
 
 function printReportIndex(
@@ -366,6 +415,7 @@ async function writeHouseWorkbook(
   verdict: "pass" | "fail",
   rules: RuleReportRow[],
   allRules: RuleReportRow[],
+  inlineFindings: InlineFinding[],
   summary: {
     rulesFailed: number;
     rulesCantTell: number;
@@ -382,7 +432,8 @@ async function writeHouseWorkbook(
   workbook.modified = new Date(generatedAt);
   workbook.calcProperties.fullCalcOnLoad = true;
 
-  const issuesLastRow = Math.max(9, 8 + rules.length);
+  const developerIssues = buildDeveloperIssueRows(meta, rules, inlineFindings);
+  const issuesLastRow = Math.max(9, 8 + developerIssues.length);
   const coverageLastRow = Math.max(5, 4 + allRules.length);
 
   // Summary -----------------------------------------------------------------
@@ -474,63 +525,59 @@ async function writeHouseWorkbook(
 
   // Issues Overview ---------------------------------------------------------
   const issuesSheet = workbook.addWorksheet("Issues Overview");
-  issuesSheet.columns = [38, 28, 18, 22, 16, 50, 30, 50, 38, 24, 24].map((width) => ({ width }));
+  issuesSheet.columns = [38, 62, 68, 68, 18, 14, 18, 22, 38, 24].map((width) => ({ width }));
   issuesSheet.views = [{ state: "frozen", ySplit: 8, showGridLines: false }];
   issuesSheet.getCell("A1").value = `Page: ${meta.url}`;
   setHyperlink(issuesSheet.getCell("A1"), meta.url, `Page: ${meta.url}`);
   issuesSheet.getCell("A2").value = `Compliance Standard: ${meta.conformance}`;
   issuesSheet.getCell("A3").value = `Audit Date: ${new Date(generatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
   issuesSheet.getCell("A4").value = `Auditor: Siteimprove Alfa ${engineVersion}`;
-  issuesSheet.mergeCells("A5:K5");
+  issuesSheet.mergeCells("A5:J5");
   issuesSheet.getCell("A5").value =
-    "Prioritization Guidance — Fix failed rules before items marked Needs Review. Alfa provides rule and occurrence evidence; assign ownership, severity, and remediation details during triage.";
+    "Developer remediation detail — Each row mirrors the CI terminal report: what failed, the exact source location, why it failed, and a concrete starting fix. Source and rule references are clickable in GitHub Actions artifacts.";
   issuesSheet.getCell("A5").fill = { type: "pattern", pattern: "solid", fgColor: { argb: HOUSE_NOTE } };
   issuesSheet.getCell("A5").alignment = { wrapText: true, vertical: "top" };
   issuesSheet.getRow(5).height = 48;
   issuesSheet.getRow(8).values = [
-    "Issues",
-    "Detection source",
-    "Conformance Level",
-    "Remediation Ownership",
+    "Title",
+    "Location",
+    "Why",
+    "Fix",
+    "Result",
+    "Rule occurrences",
     "Status",
-    "What to Fix",
-    "Page Links / Locations",
-    "Action",
-    "Helpful Resources",
+    "Owner",
+    "Rule / Help",
     "Notes",
-    "Evidence",
   ];
-  if (rules.length === 0) {
-    addEmptyMessage(issuesSheet, 9, "No failed or indeterminate rules were reported.", 11);
+  if (developerIssues.length === 0) {
+    addEmptyMessage(issuesSheet, 9, "No failed or indeterminate rules were reported.", 10);
   } else {
-    rules.forEach((rule, index) => {
+    developerIssues.forEach((issue, index) => {
       const row = issuesSheet.getRow(9 + index);
       row.values = [
-        rule.title,
-        "Siteimprove Alfa (ACT rules)",
-        "A/AA scope",
-        "Unassigned",
+        issue.title,
+        issue.location,
+        issue.why,
+        issue.fix,
+        issue.result,
+        issue.occurrences,
         "Not Started",
-        rule.failed > 0
-          ? `Alfa returned ${rule.failed} failed outcome(s) for this rule.`
-          : `Alfa returned ${rule.cantTell} outcome(s) that require expert review.`,
-        meta.url,
-        "Open the rule reference and inspect the affected target and diagnostic in the JSON report. Record the remediation owner and notes, then rerun the audit.",
-        rule.uri,
+        "Unassigned",
+        issue.rule,
         "",
-        rule.failed > 0 ? `${rule.failed} failed` : `${rule.cantTell} needs review`,
       ];
-      row.height = 60;
-      setHyperlink(row.getCell(7), meta.url, "1 linked page — open page");
-      setHyperlink(row.getCell(9), rule.uri);
-      row.getCell(5).dataValidation = {
+      row.height = 84;
+      if (issue.locationUrl) setHyperlink(row.getCell(2), issue.locationUrl, issue.location);
+      setHyperlink(row.getCell(9), issue.rule);
+      row.getCell(7).dataValidation = {
         type: "list",
         allowBlank: false,
         formulae: ['"Not Started,In Progress,Blocked,Done"'],
       };
     });
   }
-  styleTable(issuesSheet, 8, issuesLastRow, 11);
+  styleTable(issuesSheet, 8, issuesLastRow, 10);
 
   // Owner Worklist ----------------------------------------------------------
   const ownerSheet = workbook.addWorksheet("Owner Worklist");
@@ -916,6 +963,7 @@ export async function writeAccessibilityReport(audit: Audit, meta: ReportMeta): 
     verdict,
     rules,
     allRules,
+    inlineFindings,
     { rulesFailed, rulesCantTell, rulesPassed, occurrencesFailed, occurrencesCantTell },
     { commit: GITHUB_SHA, branch: GITHUB_REF_NAME, runUrl },
     siteimproveUrl,
