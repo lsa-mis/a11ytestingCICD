@@ -136,6 +136,19 @@ function reportUrlToString(value: ReportMeta["reportUrl"]): string | undefined {
   return typeof maybe.getOr === "function" ? maybe.getOr(undefined) : undefined;
 }
 
+function formatAuditTimestamp(generatedAt: string): string {
+  return new Date(generatedAt).toLocaleString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
+  });
+}
+
 /** Pull the actionable parts of Alfa's serialized outcomes into CI-log-sized rows. */
 function extractInlineFindings(outcomes: unknown): InlineFinding[] {
   if (!Array.isArray(outcomes)) return [];
@@ -485,8 +498,8 @@ async function writeHouseWorkbook(
   setHyperlink(summarySheet.getCell("B5"), meta.url);
   summaryRow(6, "Audited against", meta.conformance);
   summaryRow(7, "Engine", `Siteimprove Alfa ${engineVersion}`);
-  summaryRow(8, "Audit date", new Date(generatedAt));
-  summarySheet.getCell("B8").numFmt = "mmmm d, yyyy";
+  summaryRow(8, "Audit date and time", new Date(generatedAt));
+  summarySheet.getCell("B8").numFmt = 'mmmm d, yyyy h:mm:ss AM/PM "UTC"';
 
   section(10, "Issue counts");
   formulaRow(
@@ -534,7 +547,7 @@ async function writeHouseWorkbook(
   issuesSheet.getCell("A1").value = `Page: ${meta.url}`;
   setHyperlink(issuesSheet.getCell("A1"), meta.url, `Page: ${meta.url}`);
   issuesSheet.getCell("A2").value = `Compliance Standard: ${meta.conformance}`;
-  issuesSheet.getCell("A3").value = `Audit Date: ${new Date(generatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
+  issuesSheet.getCell("A3").value = `Audit Date and Time: ${formatAuditTimestamp(generatedAt)}`;
   issuesSheet.getCell("A4").value = `Auditor: Siteimprove Alfa ${engineVersion}`;
   issuesSheet.mergeCells("A5:J5");
   issuesSheet.getCell("A5").value =
@@ -673,6 +686,9 @@ async function writeHouseWorkbook(
     "Every rule evaluated for this page, including passed rules. Rule names and descriptions come from Alfa's canonical rule guidance; open the Reference link for full criteria and examples.",
     [18, 44, 72, 48, 20, 14, 16, 14],
   );
+  coverageSheet.mergeCells("A3:H3");
+  coverageSheet.getCell("A3").value = `Audit Date and Time: ${formatAuditTimestamp(generatedAt)}`;
+  coverageSheet.getCell("A3").font = { italic: true, size: 10, color: { argb: "57606A" } };
   coverageSheet.getRow(4).values = [
     "Rule",
     "Rule name",
