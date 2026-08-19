@@ -154,9 +154,9 @@ expect(failingRules.size).toBe(0);                          // fail on violation
 
 ## Optional: publish results to Siteimprove
 
-Local audits run fully offline by default. GitHub Actions is configured to upload
-results to the **Siteimprove Intelligence Platform** using these repository secrets
-(_Settings → Secrets and variables → Actions_):
+Local audits and GitHub Actions run fully offline by default. To publish results
+to the **Siteimprove Intelligence Platform**, add these repository secrets
+(_Settings → Secrets and variables → Actions → Secrets_):
 
 | Secret          | Value                          |
 | --------------- | ------------------------------ |
@@ -164,11 +164,17 @@ results to the **Siteimprove Intelligence Platform** using these repository secr
 | `SI_API_KEY`    | Your Siteimprove API key       |
 | `SI_SITE_ID`    | The target site ID             |
 
-GitHub Actions sets `SI_UPLOAD_ENABLED=true`. When all three secrets are present,
-each audited route is uploaded and the job prints a completion message. When the
-upload is enabled but a required secret is missing, the job fails with the exact
-missing secret names. Local runs stay offline unless you explicitly set the flag
-and credentials.
+Then add a repository variable under _Actions → Variables_:
+
+| Variable            | Value                                                    |
+| ------------------- | -------------------------------------------------------- |
+| `SI_UPLOAD_ENABLED` | `true` to upload; `false` (or delete it) to keep SIP off |
+
+When enabled, each audited route is uploaded and the job prints its direct SIP
+report link. A missing secret, invalid site ID, rejected upload, or unavailable
+Code Checker subscription fails clearly. Turning the variable off skips only the
+SIP upload; Alfa auditing and the CI report artifacts continue normally. Local
+runs remain offline unless you explicitly set the flag and credentials.
 
 ## Learn more
 

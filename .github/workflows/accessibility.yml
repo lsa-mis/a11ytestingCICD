@@ -81,9 +81,10 @@ jobs:
           # A11Y_ENFORCEMENT Actions variable to advisory for a broad rollout,
           # while a manual run can choose advisory without changing the variable.
           A11Y_ENFORCEMENT: ${{ inputs.accessibility_enforcement || vars.A11Y_ENFORCEMENT || 'enforce' }}
-          # Optional: set these as repository secrets to publish results to the
-          # Siteimprove Intelligence Platform. The audit gate works without them.
-          SI_UPLOAD_ENABLED: "true"
+          # Optional: set the SI_UPLOAD_ENABLED repository variable to "true"
+          # to publish results to SIP. Missing/false keeps uploads off while the
+          # local audit gate and CI artifacts continue to work normally.
+          SI_UPLOAD_ENABLED: ${{ vars.SI_UPLOAD_ENABLED || 'false' }}
           SI_USER_EMAIL: ${{ secrets.SI_USER_EMAIL }}
           SI_API_KEY: ${{ secrets.SI_API_KEY }}
           SI_SITE_ID: ${{ secrets.SI_SITE_ID }}

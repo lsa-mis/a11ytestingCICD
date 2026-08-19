@@ -672,10 +672,19 @@ _Settings → Secrets and variables → Actions → New repository secret_
 | `SI_API_KEY`    | Your Siteimprove API key       |
 | `SI_SITE_ID`    | The target site ID             |
 
-When **all three** are present, `SIP.upload()` sends the audit (with commit
-metadata) to your dashboard and prints a link in the job log. When **any** is
-missing, that branch is skipped and only the local pass/fail gate runs — so
-forks and external PRs (which don't get secrets) still work.
+Add one repository variable under _Settings → Secrets and variables → Actions →
+Variables_ to control the integration without editing the workflow:
+
+| Variable            | Value                                                    |
+| ------------------- | -------------------------------------------------------- |
+| `SI_UPLOAD_ENABLED` | `true` to upload; `false` (or delete it) to keep SIP off |
+
+When enabled, `SIP.upload()` sends each audit with commit metadata and prints a
+direct report link in the job log. Missing credentials, an invalid site ID, a
+rejected upload, or a missing Code Checker subscription produces a clear failure.
+When disabled, only the SIP request is skipped; the local pass/fail gate and CI
+artifacts continue normally. This also keeps forks and external pull requests
+safe when they cannot access repository secrets.
 
 Never hardcode these values — always use Actions secrets.
 
