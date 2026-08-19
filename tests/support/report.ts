@@ -4,6 +4,8 @@ import { join } from "node:path";
 import ExcelJS, { type Cell, type Worksheet } from "exceljs";
 import { Logging, type Audit } from "@siteimprove/alfa-test-utils";
 
+import alfaRuleMetadata from "./alfa-rule-metadata.json" with { type: "json" };
+
 /**
  * Prints a terminal-first accessibility report for one audited route and, in
  * GitHub Actions only, writes a durable, shareable report bundle.
@@ -59,6 +61,8 @@ const OVERRIDE_GUIDE_PATH = "docs/A11Y-OVERRIDES.md";
 interface RuleReportRow {
   rule: string;
   title: string;
+  name: string;
+  description: string;
   uri: string;
   failed: number;
   passed: number;
@@ -488,32 +492,32 @@ async function writeHouseWorkbook(
   formulaRow(
     11,
     "Open issue types",
-    `=COUNTIF('Coverage & Method'!$C$5:$C$${coverageLastRow},\"Failed\")`,
+    `=COUNTIF('Coverage & Method'!$E$5:$E$${coverageLastRow},\"Failed\")`,
     summary.rulesFailed,
   );
   formulaRow(
     12,
     "Open findings (occurrences)",
-    `=SUM('Coverage & Method'!$D$5:$D$${coverageLastRow})`,
+    `=SUM('Coverage & Method'!$F$5:$F$${coverageLastRow})`,
     summary.occurrencesFailed,
   );
   formulaRow(
     13,
     "Needs human review (rule types)",
-    `=COUNTIF('Coverage & Method'!$C$5:$C$${coverageLastRow},\"Needs review\")`,
+    `=COUNTIF('Coverage & Method'!$E$5:$E$${coverageLastRow},\"Needs review\")`,
     summary.rulesCantTell,
   );
   formulaRow(
     14,
     "Passed rule types",
-    `=COUNTIF('Coverage & Method'!$C$5:$C$${coverageLastRow},\"Passed\")`,
+    `=COUNTIF('Coverage & Method'!$E$5:$E$${coverageLastRow},\"Passed\")`,
     summary.rulesPassed,
   );
 
   section(16, "Audit outcome");
   summaryRow(17, "Verdict", verdict.toUpperCase());
-  formulaRow(18, "Failed occurrences", `=SUM('Coverage & Method'!$D$5:$D$${coverageLastRow})`, summary.occurrencesFailed);
-  formulaRow(19, "Can't Tell occurrences", `=SUM('Coverage & Method'!$E$5:$E$${coverageLastRow})`, summary.occurrencesCantTell);
+  formulaRow(18, "Failed occurrences", `=SUM('Coverage & Method'!$F$5:$F$${coverageLastRow})`, summary.occurrencesFailed);
+  formulaRow(19, "Can't Tell occurrences", `=SUM('Coverage & Method'!$G$5:$G$${coverageLastRow})`, summary.occurrencesCantTell);
 
   section(21, "CI context");
   summaryRow(22, "Branch", ci.branch ?? "Local run");
@@ -666,17 +670,28 @@ async function writeHouseWorkbook(
   startHouseSheet(
     coverageSheet,
     "Coverage & method — Alfa rule results",
-    "Every rule evaluated for this page, including passed rules. Failed and Can't Tell counts remain separate so automation never hides human-review work.",
-    [26, 54, 20, 14, 16, 14],
+    "Every rule evaluated for this page, including passed rules. Rule names and descriptions come from Alfa's canonical rule guidance; open the Reference link for full criteria and examples.",
+    [18, 44, 72, 48, 20, 14, 16, 14],
   );
-  coverageSheet.getRow(4).values = ["Rule", "Reference", "Result", "Failed", "Can't Tell", "Passed"];
+  coverageSheet.getRow(4).values = [
+    "Rule",
+    "Rule name",
+    "Description",
+    "Reference",
+    "Result",
+    "Failed",
+    "Can't Tell",
+    "Passed",
+  ];
   if (allRules.length === 0) {
-    addEmptyMessage(coverageSheet, 5, "No Alfa rule results were recorded.", 6);
+    addEmptyMessage(coverageSheet, 5, "No Alfa rule results were recorded.", 8);
   } else {
     allRules.forEach((rule, index) => {
       const row = coverageSheet.getRow(5 + index);
       row.values = [
         rule.rule,
+        rule.name,
+        rule.description,
         rule.uri,
         rule.failed > 0
           ? "Failed"
@@ -689,10 +704,11 @@ async function writeHouseWorkbook(
         rule.cantTell,
         rule.passed,
       ];
-      setHyperlink(row.getCell(2), rule.uri);
+      setHyperlink(row.getCell(4), rule.uri, "Open Alfa rule");
+      row.height = 54;
     });
   }
-  styleTable(coverageSheet, 4, coverageLastRow, 6);
+  styleTable(coverageSheet, 4, coverageLastRow, 8);
 
   // Test Tracking -----------------------------------------------------------
   const reviewRules = rules.filter((rule) => rule.cantTell > 0);
@@ -767,9 +783,13 @@ export async function writeAccessibilityReport(audit: Audit, meta: ReportMeta): 
     else if (counts.cantTell > 0) rulesCantTell++;
     else if (counts.passed > 0) rulesPassed++;
 
+    const rule = uri.split("/").pop() ?? uri;
+    const metadata = alfaRuleMetadata[rule as keyof typeof alfaRuleMetadata];
     allRules.push({
-      rule: uri.split("/").pop() ?? uri,
-      title: uri.split("/").pop() ?? uri,
+      rule,
+      title: metadata?.name ?? rule,
+      name: metadata?.name ?? rule,
+      description: metadata?.description ?? "Open the Alfa rule reference for its full purpose and test method.",
       uri,
       failed: counts.failed,
       passed: counts.passed,
